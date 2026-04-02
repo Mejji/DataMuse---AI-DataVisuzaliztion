@@ -20,7 +20,7 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
   };
 
   return (
-    <div className="bg-white border border-border/60 rounded-2xl p-7 group shadow-sm
+    <div className="bg-card border border-border/60 rounded-2xl p-7 group shadow-sm
                     hover:shadow-md hover:border-border transition-all duration-300">
       <div className="flex items-start gap-4">
         <div className="mt-1 cursor-grab text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
@@ -29,16 +29,16 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
 
         <div className="flex-1">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-display font-bold uppercase tracking-widest text-dm-coral bg-dm-coral-light px-3 py-1 rounded-full">
+            <span className="text-[10px] font-display font-bold uppercase tracking-widest text-dm-coral bg-dm-coral-light dark:bg-dm-coral/10 px-3 py-1 rounded-full">
               Chapter {chapter.order}
             </span>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               {isEditing ? (
-                <button onClick={handleSave} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                <button onClick={handleSave} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors">
                   <Check className="w-4 h-4" />
                 </button>
               ) : (
-                <button onClick={() => setIsEditing(true)} className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal-light rounded-lg transition-colors">
+                <button onClick={() => setIsEditing(true)} className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal-light dark:hover:bg-dm-teal/10 rounded-lg transition-colors">
                   <Edit3 className="w-4 h-4" />
                 </button>
               )}
@@ -53,21 +53,21 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
               <input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full text-xl font-display font-bold text-dm-slate border-b border-border pb-2 mb-4
+                className="w-full text-xl font-display font-bold text-foreground bg-transparent border-b border-border pb-2 mb-4
                            focus:outline-none focus:border-dm-coral/40 transition-colors"
               />
               <textarea
                 value={editNarrative}
                 onChange={(e) => setEditNarrative(e.target.value)}
                 rows={6}
-                className="w-full text-sm text-foreground leading-relaxed border border-border rounded-xl p-4
+                className="w-full text-sm text-foreground bg-transparent leading-relaxed border border-border rounded-xl p-4
                            focus:outline-none focus:ring-2 focus:ring-dm-coral/20 focus:border-dm-coral/30
                            transition-all duration-200"
               />
             </>
           ) : (
             <>
-              <h3 className="text-xl font-display font-bold text-dm-slate mb-3">{chapter.title}</h3>
+              <h3 className="text-xl font-display font-bold text-foreground mb-3">{chapter.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{chapter.narrative}</p>
             </>
           )}

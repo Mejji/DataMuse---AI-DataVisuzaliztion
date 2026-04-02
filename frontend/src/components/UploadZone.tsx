@@ -36,21 +36,21 @@ const FEATURES = [
     title: 'Chat with your data',
     description: 'Ask questions in plain English. Muse understands what you need.',
     color: 'from-dm-coral to-dm-amber',
-    bgColor: 'bg-dm-coral-light',
+    bgColor: 'bg-dm-coral-light dark:bg-dm-coral/10',
   },
   {
     icon: BarChart3,
     title: 'Beautiful charts, instantly',
     description: 'Get visualizations that tell the story your data wants to share.',
     color: 'from-dm-teal to-dm-sky',
-    bgColor: 'bg-dm-teal-light',
+    bgColor: 'bg-dm-teal-light dark:bg-dm-teal/10',
   },
   {
     icon: BookOpen,
     title: 'Build data stories',
     description: 'Turn your findings into chapters that anyone can understand.',
     color: 'from-dm-violet to-dm-sky',
-    bgColor: 'bg-violet-50',
+    bgColor: 'bg-violet-50 dark:bg-dm-violet/10',
   },
 ];
 
@@ -137,7 +137,7 @@ export function UploadZone() {
             <Sparkles className="w-8 h-8 text-white" />
           </div>
 
-          <h2 className="font-display text-4xl font-extrabold text-dm-slate tracking-tight mb-4">
+          <h2 className="font-display text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-4">
             Hi, I'm <span className="bg-gradient-to-r from-dm-coral to-dm-amber bg-clip-text text-transparent">Muse</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
@@ -154,8 +154,8 @@ export function UploadZone() {
               flex flex-col items-center gap-5 transition-all duration-300 cursor-pointer
               group overflow-hidden
               ${isDragging
-                ? 'border-dm-coral bg-dm-coral-light/80 scale-[1.02] shadow-xl shadow-dm-coral/10'
-                : 'border-border hover:border-dm-coral/40 bg-white/60 backdrop-blur-sm hover:bg-white/90 hover:shadow-lg hover:shadow-dm-coral/5'
+                ? 'border-dm-coral bg-dm-coral-light/80 dark:bg-dm-coral/10 scale-[1.02] shadow-xl shadow-dm-coral/10'
+                : 'border-border hover:border-dm-coral/40 bg-card/60 backdrop-blur-sm hover:bg-card/90 hover:shadow-lg hover:shadow-dm-coral/5'
               }
               ${isUploading ? 'pointer-events-none' : ''}
             `}
@@ -167,7 +167,7 @@ export function UploadZone() {
             {/* Subtle animated ring on hover */}
             <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
               <div className="absolute inset-[-1px] rounded-3xl bg-gradient-to-r from-dm-coral/20 via-dm-amber/20 to-dm-teal/20 animate-gradient" />
-              <div className="absolute inset-[1px] rounded-3xl bg-white/90" />
+              <div className="absolute inset-[1px] rounded-3xl bg-card/90" />
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-4">
@@ -231,8 +231,8 @@ export function UploadZone() {
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="group relative bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-border/50
-                         hover:bg-white hover:shadow-lg hover:shadow-dm-coral/5 hover:border-border
+              className="group relative bg-card/70 backdrop-blur-sm rounded-2xl p-6 border border-border/50
+                         hover:bg-card hover:shadow-lg hover:shadow-dm-coral/5 hover:border-border
                          transition-all duration-300 hover:-translate-y-1"
             >
               <div className={`w-10 h-10 rounded-xl ${feature.bgColor} flex items-center justify-center mb-4
@@ -241,7 +241,7 @@ export function UploadZone() {
                   style={{ color: feature.color.includes('coral') ? '#f97066' : feature.color.includes('teal') ? '#14b8a6' : '#8b5cf6' }}
                 />
               </div>
-              <h3 className="font-display font-bold text-dm-slate text-sm mb-1.5">
+              <h3 className="font-display font-bold text-foreground text-sm mb-1.5">
                 {feature.title}
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">

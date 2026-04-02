@@ -20,14 +20,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-dm-coral/20 to-dm-amber/20 flex items-center justify-center">
             <Sparkles className="w-3 h-3 text-dm-coral" />
           </div>
-          <span className="text-xs font-display font-semibold text-dm-slate/70">Muse</span>
+          <span className="text-xs font-display font-semibold text-foreground/70">Muse</span>
         </div>
       )}
       <div
         className={`
           rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[90%]
           ${isMuse
-            ? 'bg-white border border-border/60 text-foreground shadow-sm'
+            ? 'bg-card border border-border/60 text-foreground shadow-sm'
             : 'bg-gradient-to-r from-dm-slate to-dm-slate/90 text-white ml-auto shadow-md shadow-dm-slate/10'
           }
         `}
@@ -37,7 +37,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
       {/* Inline chart preview */}
       {message.chart_config && (
-        <div className="bg-white border border-border/60 rounded-2xl p-4 max-w-[95%] shadow-sm
+        <div className="bg-card border border-border/60 rounded-2xl p-4 max-w-[95%] shadow-sm
                         hover:shadow-md transition-shadow duration-200 animate-scale-in">
           <ChartRenderer config={message.chart_config} height={200} />
           <div className="flex gap-3 mt-3 pt-3 border-t border-border/40">

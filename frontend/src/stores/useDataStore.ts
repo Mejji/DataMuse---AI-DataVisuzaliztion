@@ -33,6 +33,7 @@ interface DataState {
 
   // View
   view: 'upload' | 'explore' | 'story';
+  isChatPanelOpen: boolean;
 
   // Actions
   setDataset: (id: string, profile: DatasetProfile) => void;
@@ -53,6 +54,7 @@ interface DataState {
   setStory: (story: Story | null) => void;
   setStoryMode: (v: boolean) => void;
   setView: (view: 'upload' | 'explore' | 'story') => void;
+  setIsChatPanelOpen: (v: boolean) => void;
   reset: () => void;
 }
 
@@ -73,6 +75,7 @@ export const useDataStore = create<DataState>((set) => ({
   story: null,
   isStoryMode: false,
   view: 'upload',
+  isChatPanelOpen: false,
 
   setDataset: (id, profile) => set({ datasetId: id, profile, view: 'explore' }),
   setUploading: (v) => set({ isUploading: v }),
@@ -106,9 +109,10 @@ export const useDataStore = create<DataState>((set) => ({
   setStory: (story) => set({ story }),
   setStoryMode: (v) => set({ isStoryMode: v, view: v ? 'story' : 'explore' }),
   setView: (view) => set({ view }),
+  setIsChatPanelOpen: (v) => set({ isChatPanelOpen: v }),
   reset: () => set({
     datasetId: null, profile: null, isUploading: false, isAnalyzing: false, messages: [], isChatLoading: false, suggestedPrompts: [], dashboardPanels: [],
     highlightedPanelId: null,
-    suggestions: [], pinnedInsights: [], story: null, isStoryMode: false, view: 'upload',
+    suggestions: [], pinnedInsights: [], story: null, isStoryMode: false, view: 'upload', isChatPanelOpen: false,
   }),
 }));

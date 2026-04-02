@@ -78,7 +78,7 @@ export function CompanionPanel() {
   };
 
   return (
-    <aside className="w-[400px] border-l border-border/60 bg-white/80 backdrop-blur-md flex flex-col">
+    <aside className="w-full md:w-[350px] lg:w-[400px] h-full border-l border-border/60 bg-card/80 backdrop-blur-md flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -87,18 +87,18 @@ export function CompanionPanel() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             {/* Online indicator */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-card" />
           </div>
           <div>
-            <h2 className="font-display font-bold text-dm-slate text-sm">Muse</h2>
-            <p className="text-xs text-muted-foreground">Your data analyst</p>
+            <h2 className="font-display font-bold text-foreground text-sm">Muse</h2>
+            <p className="text-xs text-muted-foreground">Your Data Analyst</p>
           </div>
         </div>
         {datasetId && (
           <button
             onClick={() => setStoryMode(true)}
             className="flex items-center gap-1.5 text-xs font-display font-semibold text-dm-coral
-                       hover:text-dm-coral/80 bg-dm-coral-light hover:bg-dm-coral/10 px-3 py-2 rounded-xl
+                       hover:text-dm-coral/80 bg-dm-coral-light dark:bg-dm-coral/10 hover:bg-dm-coral/20 px-3 py-2 rounded-xl
                        transition-all duration-200 hover:shadow-sm"
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -138,7 +138,7 @@ export function CompanionPanel() {
 
       {/* Suggested Prompts */}
       {suggestedPrompts.length > 0 && datasetId && messages.length <= 3 && (
-        <div className="px-4 py-3 border-t border-border/60 bg-white/40">
+        <div className="px-4 py-3 border-t border-border/60 bg-card/40">
           <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-muted-foreground">
             <MessageCircleQuestion className="w-3.5 h-3.5 text-dm-amber" />
             <span>Try asking:</span>
@@ -149,8 +149,8 @@ export function CompanionPanel() {
                 key={i}
                 onClick={() => handlePromptClick(prompt)}
                 className="flex-shrink-0 max-w-[200px] truncate px-3 py-1.5 rounded-full text-xs
-                           bg-dm-coral-light/50 border border-dm-coral/20 text-dm-slate
-                           hover:bg-dm-coral-light hover:border-dm-coral/40 hover:shadow-sm hover:scale-105
+                           bg-dm-coral-light/50 dark:bg-dm-coral/10 border border-dm-coral/20 text-foreground
+                           hover:bg-dm-coral-light dark:hover:bg-dm-coral/20 hover:border-dm-coral/40 hover:shadow-sm hover:scale-105
                            transition-all duration-200 animate-chip-in"
                 style={{ animationDelay: `${i * 100}ms` }}
                 title={prompt}
@@ -163,7 +163,7 @@ export function CompanionPanel() {
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-border/60 bg-white/60">
+      <div className="p-4 border-t border-border/60 bg-card/60">
         <div className="flex gap-2">
           <input
             type="text"
@@ -172,7 +172,7 @@ export function CompanionPanel() {
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={datasetId ? "Ask Muse about your data..." : "Upload a CSV first"}
             disabled={!datasetId || isChatLoading}
-            className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm bg-white
+            className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm bg-card text-foreground
                        focus:outline-none focus:ring-2 focus:ring-dm-coral/20 focus:border-dm-coral/40
                        disabled:bg-muted disabled:text-muted-foreground/40
                        placeholder:text-muted-foreground/50

@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import type { ChartConfig } from '../lib/api';
+import { useTheme } from '../hooks/useTheme';
 
 // Warm, distinctive palette matching the DataMuse brand
 const DEFAULT_COLORS = ['#f97066', '#f59e0b', '#14b8a6', '#38bdf8', '#8b5cf6', '#ec4899'];
@@ -25,6 +26,21 @@ const axisStyle = { fontSize: 11, fontFamily: '"Geist Variable", sans-serif' };
 
 export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
   const { chart_type, title, data, config: chartConfig } = config;
+  const { theme } = useTheme();
+
+  const isDark = theme === 'dark';
+  const gridStroke = isDark ? '#334155' : '#ebe7e3';
+  const axisStroke = isDark ? '#64748b' : '#b8b0a8';
+  const tooltipBg = isDark ? '#0f172a' : '#ffffff';
+  const tooltipBorder = isDark ? '#334155' : '#ebe7e3';
+  const tooltipColor = isDark ? '#f8fafc' : '#1e293b';
+
+  const dynamicTooltipStyle = {
+    ...tooltipStyle,
+    backgroundColor: tooltipBg,
+    borderColor: tooltipBorder,
+    color: tooltipColor,
+  };
 
   if (!data || !data.length) {
     return <p className="text-muted-foreground text-sm">No data to display</p>;
@@ -35,10 +51,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'bar':
         return (
           <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
-            <YAxis tick={axisStyle} stroke="#b8b0a8" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
+            <YAxis tick={axisStyle} stroke={axisStroke} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
               <Bar key={s.dataKey} dataKey={s.dataKey} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={[6, 6, 0, 0]} />
@@ -49,10 +65,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'line':
         return (
           <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
-            <YAxis tick={axisStyle} stroke="#b8b0a8" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
+            <YAxis tick={axisStyle} stroke={axisStroke} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
               <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2 }} />
@@ -76,7 +92,7 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
                 <Cell key={i} fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
           </PieChart>
         );
@@ -84,10 +100,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'area':
         return (
           <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
-            <YAxis tick={axisStyle} stroke="#b8b0a8" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
+            <YAxis tick={axisStyle} stroke={axisStroke} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
               <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.15} />
@@ -98,10 +114,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'scatter':
         return (
           <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid stroke="#ebe7e3" />
-            <XAxis type="number" dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
-            <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey} tick={axisStyle} stroke="#b8b0a8" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <CartesianGrid stroke={gridStroke} />
+            <XAxis type="number" dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
+            <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey} tick={axisStyle} stroke={axisStroke} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
             <Scatter data={data} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[0]} />
           </ScatterChart>
@@ -110,10 +126,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'composed':
         return (
           <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
-            <YAxis tick={axisStyle} stroke="#b8b0a8" />
-            <Tooltip contentStyle={tooltipStyle} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
+            <YAxis tick={axisStyle} stroke={axisStroke} />
+            <Tooltip contentStyle={dynamicTooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => {
               const color = s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length];
@@ -133,7 +149,7 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
 
   return (
     <div className="w-full">
-      {title && <h3 className="text-sm font-display font-semibold text-dm-slate mb-3">{title}</h3>}
+      {title && <h3 className="text-sm font-display font-semibold text-foreground mb-3 truncate" title={title}>{title}</h3>}
       <ResponsiveContainer width="100%" height={height}>
         {renderChart()}
       </ResponsiveContainer>

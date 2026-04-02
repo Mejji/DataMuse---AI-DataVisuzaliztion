@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Pin, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Pin, Maximize2, Minimize2, Download, FileText, FileSpreadsheet, FileCode } from 'lucide-react';
 import { ChartRenderer } from './ChartRenderer';
 import type { ChartConfig } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
+import { exportChartAsPDF, exportDataAsCSV, exportDataAsExcel } from '../lib/exportUtils';
 
 interface DashboardPanelProps {
   id: string;
@@ -14,7 +15,9 @@ interface DashboardPanelProps {
 export function DashboardPanel({ id, chart, source, isHighlighted }: DashboardPanelProps) {
   const { removePanel, pinInsight, highlightPanel } = useDataStore();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isHighlighted && panelRef.current) {
@@ -24,14 +27,40 @@ export function DashboardPanel({ id, chart, source, isHighlighted }: DashboardPa
     }
   }, [isHighlighted, highlightPanel]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const sourceLabel = source === 'chat' ? 'From conversation' : source === 'suggestion' ? 'Suggested by Muse' : '';
-  const sourceColor = source === 'chat' ? 'text-dm-teal bg-dm-teal-light' : 'text-dm-coral bg-dm-coral-light';
+  const sourceColor = source === 'chat' ? 'text-dm-teal bg-dm-teal-light dark:bg-dm-teal/10' : 'text-dm-coral bg-dm-coral-light dark:bg-dm-coral/10';
+
+  const handleExportPDF = () => {
+    exportChartAsPDF(id, chart.title || 'chart');
+    setShowExportMenu(false);
+  };
+
+  const handleExportCSV = () => {
+    if (chart.data) exportDataAsCSV(chart.data, chart.title || 'data');
+    setShowExportMenu(false);
+  };
+
+  const handleExportExcel = () => {
+    if (chart.data) exportDataAsExcel(chart.data, chart.title || 'data');
+    setShowExportMenu(false);
+  };
 
   return (
     <div
+      id={id}
       ref={panelRef}
       className={`
-        bg-white border rounded-2xl p-6 transition-all duration-500 group
+        bg-card border rounded-2xl p-6 transition-all duration-500 group relative
         hover:-translate-y-0.5
         ${isHighlighted
           ? 'border-dm-coral/40 shadow-xl shadow-dm-coral/10 ring-2 ring-dm-coral/20'
@@ -42,8 +71,8 @@ export function DashboardPanel({ id, chart, source, isHighlighted }: DashboardPa
     >
       {/* Panel header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex-1">
-          <h3 className="font-display font-bold text-dm-slate text-sm">{chart.title}</h3>
+        <div className="flex-1 pr-4">
+          <h3 className="font-display font-bold text-foreground text-sm truncate" title={chart.title}>{chart.title}</h3>
           {sourceLabel && (
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 inline-block ${sourceColor}`}>
               {sourceLabel}
@@ -51,16 +80,38 @@ export function DashboardPanel({ id, chart, source, isHighlighted }: DashboardPa
           )}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="p-1.5 text-muted-foreground hover:text-dm-sky hover:bg-dm-sky/10 rounded-lg transition-all duration-200"
+              title="Export"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-1 w-40 bg-card border border-border/60 rounded-xl shadow-lg z-10 py-1 overflow-hidden">
+                <button onClick={handleExportPDF} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" /> Export as PDF
+                </button>
+                <button onClick={handleExportCSV} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
+                  <FileCode className="w-3.5 h-3.5 text-muted-foreground" /> Export as CSV
+                </button>
+                <button onClick={handleExportExcel} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-muted-foreground" /> Export as Excel
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => pinInsight(chart.title || 'Chart insight')}
-            className="p-1.5 text-muted-foreground hover:text-dm-violet hover:bg-violet-50 rounded-lg transition-all duration-200"
+            className="p-1.5 text-muted-foreground hover:text-dm-violet hover:bg-dm-violet/10 rounded-lg transition-all duration-200"
             title="Pin to story"
           >
             <Pin className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal-light rounded-lg transition-all duration-200"
+            className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal/10 rounded-lg transition-all duration-200"
             title={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
