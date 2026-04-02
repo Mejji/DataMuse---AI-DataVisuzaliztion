@@ -1,0 +1,17 @@
+date,region,product,category,revenue,units_sold,profit_margin
+2023-01-15,North,Widget A,Electronics,15000,120,0.25
+2023-01-15,South,Widget B,Electronics,12000,95,0.22
+2023-01-15,East,Gadget X,Home,8500,200,0.35
+2023-01-15,West,Gadget Y,Home,9200,180,0.30
+2023-02-15,North,Widget A,Electronics,16500,135,0.26
+2023-02-15,South,Widget B,Electronics,11000,88,0.20
+2023-02-15,East,Gadget X,Home,9000,210,0.34
+2023-02-15,West,Gadget Y,Home,10500,195,0.32
+2023-03-15,North,Widget A,Electronics,18000,150,0.28
+2023-03-15,South,Widget B,Electronics,13500,105,0.23
+2023-03-15,East,Gadget X,Home,7500,175,0.33
+2023-03-15,West,Gadget Y,Home,11000,200,0.31
+2023-04-15,North,Widget A,Electronics,14000,110,0.24
+2023-04-15,South,Widget B,Electronics,15500,120,0.25
+2023-04-15,East,Gadget X,Home,10000,230,0.36
+2023-04-15,West,Gadget Y,Home,8800,165,0.29
