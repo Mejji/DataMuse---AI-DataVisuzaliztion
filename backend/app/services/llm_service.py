@@ -1,8 +1,8 @@
 import json
 import re
 import traceback
+import threading
 from groq import Groq
-from openai import OpenAI
 from app.config import settings
 from app.services.muse_prompts import (
     MUSE_SYSTEM_PROMPT,
@@ -14,27 +14,50 @@ from app.services.qdrant_service import search
 from app.services.data_tools import TOOL_DEFINITIONS, execute_tool
 
 # ---------------------------------------------------------------------------
-# Clients
+# Groq client
 # ---------------------------------------------------------------------------
 groq_client = Groq(api_key=settings.GROQ_API_KEY)
 
-openrouter_client: OpenAI | None = None
-if settings.OPENROUTER_API_KEY:
-    openrouter_client = OpenAI(
-        base_url=settings.OPENROUTER_BASE_URL,
-        api_key=settings.OPENROUTER_API_KEY,
-    )
-
-# Track which provider is active so we can skip Groq after a rate-limit hit
-# within the same process lifetime (resets on restart).
-_groq_rate_limited = False
-
-
 # ---------------------------------------------------------------------------
-# Rate-limit detection
+# Model Load Balancer
+#
+# Each Groq free-tier model has INDEPENDENT rate limits (~1K RPD each).
+# By round-robin rotating across 5 models, we get ~18K+ requests/day.
+# On a 429 (rate limit), we mark that model exhausted and skip to the next.
 # ---------------------------------------------------------------------------
+_lock = threading.Lock()
+_current_model_index = 0
+_exhausted_models: set[str] = set()  # models that hit 429 this session
+
+
+def _get_next_model() -> str | None:
+    """Return the next available model via round-robin. Skip exhausted ones.
+    Returns None if ALL models are exhausted."""
+    global _current_model_index
+    pool = settings.GROQ_MODEL_POOL
+    pool_size = len(pool)
+
+    with _lock:
+        # Try each model in the pool starting from current index
+        for _ in range(pool_size):
+            model = pool[_current_model_index % pool_size]
+            _current_model_index = (_current_model_index + 1) % pool_size
+            if model not in _exhausted_models:
+                return model
+
+    return None  # all models exhausted
+
+
+def _mark_exhausted(model: str) -> None:
+    """Mark a model as rate-limited for this process lifetime."""
+    with _lock:
+        _exhausted_models.add(model)
+    print(f"[load-balancer] Model '{model}' rate-limited. "
+          f"Exhausted: {len(_exhausted_models)}/{len(settings.GROQ_MODEL_POOL)}")
+
+
 def _is_rate_limit_error(exc: Exception) -> bool:
-    """Return True if the exception indicates a Groq rate-limit."""
+    """Return True if the exception indicates a rate-limit."""
     msg = str(exc).lower()
     return any(
         phrase in msg
@@ -51,13 +74,14 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Unified completion helpers
+# Core completion with load-balanced failover
 # ---------------------------------------------------------------------------
-def _groq_completion(*, messages, tools=None, tool_choice=None,
-                     temperature=0.7, max_tokens=2048, response_format=None):
-    """Call Groq and return the response. Raises on error."""
-    kwargs = dict(
-        model=settings.GROQ_MODEL,
+def _groq_completion(*, model: str, messages: list, tools=None,
+                     tool_choice=None, temperature: float = 0.7,
+                     max_tokens: int = 2048, response_format=None):
+    """Call Groq with a specific model. Raises on error."""
+    kwargs: dict = dict(
+        model=model,
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -70,109 +94,81 @@ def _groq_completion(*, messages, tools=None, tool_choice=None,
     return groq_client.chat.completions.create(**kwargs)
 
 
-def _openrouter_completion(*, messages, tools=None, tool_choice=None,
-                           temperature=0.7, max_tokens=2048, response_format=None):
-    """Call OpenRouter and return the response. Raises on error."""
-    if openrouter_client is None:
-        raise RuntimeError("OpenRouter client not configured — set OPENROUTER_API_KEY")
+def _completion_with_failover(*, messages: list, tools=None,
+                              tool_choice=None, temperature: float = 0.7,
+                              max_tokens: int = 2048, response_format=None,
+                              label: str = ""):
+    """Try models round-robin. On 429, failover to next model in pool.
 
-    kwargs = dict(
-        model=settings.OPENROUTER_MODEL,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    if tools:
-        kwargs["tools"] = tools
-        kwargs["tool_choice"] = tool_choice or "auto"
-    # OpenRouter may not support response_format for all models — try with it,
-    # and if it fails we'll catch it downstream.
-    if response_format:
-        kwargs["response_format"] = response_format
-
-    return openrouter_client.chat.completions.create(**kwargs)
-
-
-def _completion_with_fallback(*, messages, tools=None, tool_choice=None,
-                              temperature=0.7, max_tokens=2048,
-                              response_format=None, label=""):
-    """Try Groq first; on rate-limit, fall back to OpenRouter.
-
-    Also handles Groq-specific quirks (tool_use_failed, response_format
-    ConnectionError) with retries before giving up on Groq entirely.
+    Also handles Groq quirks: tool_use_failed retries without tools,
+    response_format ConnectionError retries without response_format.
     """
-    global _groq_rate_limited
+    attempts = 0
+    last_error: Exception | None = None
 
-    # ---- Try Groq (unless already rate-limited this session) ----
-    if not _groq_rate_limited:
+    while attempts < len(settings.GROQ_MODEL_POOL):
+        model = _get_next_model()
+        if model is None:
+            break  # all models exhausted
+
+        attempts += 1
+        print(f"[{label}] Using model: {model}")
+
         try:
             return _groq_completion(
-                messages=messages, tools=tools, tool_choice=tool_choice,
-                temperature=temperature, max_tokens=max_tokens,
-                response_format=response_format,
+                model=model, messages=messages, tools=tools,
+                tool_choice=tool_choice, temperature=temperature,
+                max_tokens=max_tokens, response_format=response_format,
             )
         except Exception as e:
+            last_error = e
+
             if _is_rate_limit_error(e):
-                print(f"[{label}] Groq rate-limited. Switching to OpenRouter fallback.")
-                _groq_rate_limited = True
-                # fall through to OpenRouter
-            elif ("tool_use_failed" in str(e) or "tool" in str(e).lower()) and tools:
-                # Groq sometimes rejects tool calls; retry without tools
-                print(f"[{label}] Groq tool_use_failed — retrying without tools")
+                _mark_exhausted(model)
+                continue  # try next model
+
+            # Groq tool_use_failed — retry same model without tools
+            if ("tool_use_failed" in str(e) or "tool" in str(e).lower()) and tools:
+                print(f"[{label}] tool_use_failed on {model} — retrying without tools")
                 try:
                     return _groq_completion(
-                        messages=messages, temperature=temperature,
-                        max_tokens=max_tokens,
-                    )
-                except Exception as e2:
-                    if _is_rate_limit_error(e2):
-                        print(f"[{label}] Groq rate-limited on retry. Switching to OpenRouter.")
-                        _groq_rate_limited = True
-                    else:
-                        raise
-            elif response_format and "ConnectionError" in type(e).__name__:
-                # Groq response_format sometimes causes ConnectionError
-                print(f"[{label}] Groq response_format error — retrying without it")
-                try:
-                    return _groq_completion(
-                        messages=messages, tools=tools, tool_choice=tool_choice,
+                        model=model, messages=messages,
                         temperature=temperature, max_tokens=max_tokens,
                     )
                 except Exception as e2:
                     if _is_rate_limit_error(e2):
-                        _groq_rate_limited = True
-                    else:
-                        raise
-            else:
-                raise
+                        _mark_exhausted(model)
+                        continue
+                    raise
 
-    # ---- Fallback: OpenRouter ----
-    if openrouter_client is None:
-        raise RuntimeError(
-            "Groq rate-limited and no OpenRouter fallback configured. "
-            "Set OPENROUTER_API_KEY in your .env file."
-        )
+            # response_format ConnectionError — retry without it
+            if response_format and "ConnectionError" in type(e).__name__:
+                print(f"[{label}] response_format error on {model} — retrying without it")
+                try:
+                    return _groq_completion(
+                        model=model, messages=messages, tools=tools,
+                        tool_choice=tool_choice, temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                except Exception as e2:
+                    if _is_rate_limit_error(e2):
+                        _mark_exhausted(model)
+                        continue
+                    raise
 
-    print(f"[{label}] Using OpenRouter ({settings.OPENROUTER_MODEL})")
-    try:
-        return _openrouter_completion(
-            messages=messages, tools=tools, tool_choice=tool_choice,
-            temperature=temperature, max_tokens=max_tokens,
-            response_format=response_format,
-        )
-    except Exception as e:
-        # If response_format fails on OpenRouter, retry without it
-        if response_format:
-            print(f"[{label}] OpenRouter failed with response_format — retrying without it")
-            return _openrouter_completion(
-                messages=messages, tools=tools, tool_choice=tool_choice,
-                temperature=temperature, max_tokens=max_tokens,
-            )
-        raise
+            # Non-rate-limit error — don't failover, raise immediately
+            raise
+
+    # All models exhausted
+    raise RuntimeError(
+        f"All {len(settings.GROQ_MODEL_POOL)} Groq models are rate-limited. "
+        f"Please wait for limits to reset (daily). "
+        f"Last error: {last_error}"
+    )
 
 
 # ---------------------------------------------------------------------------
-# Public API — same signatures as before
+# Public API
 # ---------------------------------------------------------------------------
 
 def chat_with_muse(
@@ -180,7 +176,7 @@ def chat_with_muse(
     dataset_id: str,
     profile: dict,
     df,  # pandas DataFrame — the actual data
-    conversation_history: list[dict] = None,
+    conversation_history: list[dict] | None = None,
 ) -> dict:
     """Send a message to Muse with function calling support."""
     # RAG: retrieve relevant context from Qdrant
@@ -190,7 +186,7 @@ def chat_with_muse(
     context = "\n".join([p.payload["text"] for p in relevant_chunks])
 
     # Build messages
-    messages = [{"role": "system", "content": MUSE_SYSTEM_PROMPT}]
+    messages: list[dict] = [{"role": "system", "content": MUSE_SYSTEM_PROMPT}]
 
     # Add conversation history
     if conversation_history:
@@ -205,8 +201,8 @@ def chat_with_muse(
     )
     messages.append({"role": "user", "content": enriched_message})
 
-    # Call with tools (Groq → OpenRouter fallback)
-    response = _completion_with_fallback(
+    # Call with tools (load-balanced across model pool)
+    response = _completion_with_failover(
         messages=messages,
         tools=TOOL_DEFINITIONS,
         tool_choice="auto",
@@ -264,8 +260,8 @@ def chat_with_muse(
                 "content": json.dumps(tool_result, default=str)[:3000],
             })
 
-        # Get next response (with fallback)
-        response = _completion_with_fallback(
+        # Get next response (load-balanced)
+        response = _completion_with_failover(
             messages=messages,
             tools=TOOL_DEFINITIONS,
             tool_choice="auto",
@@ -291,7 +287,7 @@ def suggest_visualizations(profile: dict, sample_rows: list[dict]) -> list[dict]
     )
 
     try:
-        response = _completion_with_fallback(
+        response = _completion_with_failover(
             messages=[
                 {"role": "system", "content": MUSE_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -303,8 +299,8 @@ def suggest_visualizations(profile: dict, sample_rows: list[dict]) -> list[dict]
         )
     except Exception as e:
         print(f"[suggest_visualizations] All attempts failed: {e}")
-        # Last-ditch: try without response_format on whichever provider is live
-        response = _completion_with_fallback(
+        # Last-ditch: try without response_format
+        response = _completion_with_failover(
             messages=[
                 {"role": "system", "content": "You are a data visualization assistant. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
@@ -352,7 +348,7 @@ def generate_story_draft(profile: dict, insights: list[str]) -> dict:
     )
 
     try:
-        response = _completion_with_fallback(
+        response = _completion_with_failover(
             messages=[
                 {"role": "system", "content": MUSE_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -365,7 +361,7 @@ def generate_story_draft(profile: dict, insights: list[str]) -> dict:
     except Exception as e:
         print(f"[generate_story_draft] All attempts failed: {e}")
         # Last-ditch without response_format
-        response = _completion_with_fallback(
+        response = _completion_with_failover(
             messages=[
                 {"role": "system", "content": "You are a data storytelling assistant. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
