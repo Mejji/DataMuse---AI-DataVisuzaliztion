@@ -19,10 +19,10 @@ const tooltipStyle = {
   border: '1px solid #ebe7e3',
   fontSize: '13px',
   boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-  fontFamily: '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif',
+  fontFamily: '"Outfit Variable", "Outfit", sans-serif',
 };
 
-const axisStyle = { fontSize: 11, fontFamily: '"Geist Variable", sans-serif' };
+const axisStyle = { fontSize: 11, fontFamily: '"Nunito Sans Variable", "Nunito Sans", sans-serif' };
 
 export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
   const { chart_type, title, data, config: chartConfig } = config;

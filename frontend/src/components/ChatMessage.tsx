@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Pin, PlusCircle, Check, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChartRenderer } from './ChartRenderer';
 import type { ChatMessage as ChatMessageType } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
@@ -32,7 +34,40 @@ export function ChatMessage({ message }: ChatMessageProps) {
           }
         `}
       >
-        {message.content}
+        {isMuse ? (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+              strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
+              em: ({ children }) => <em className="italic">{children}</em>,
+              h1: ({ children }) => <h3 className="text-base font-display font-bold mb-2 mt-3 first:mt-0">{children}</h3>,
+              h2: ({ children }) => <h3 className="text-sm font-display font-bold mb-1.5 mt-2.5 first:mt-0">{children}</h3>,
+              h3: ({ children }) => <h4 className="text-sm font-display font-semibold mb-1 mt-2 first:mt-0">{children}</h4>,
+              ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-0.5 last:mb-0">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-0.5 last:mb-0">{children}</ol>,
+              li: ({ children }) => <li className="text-sm leading-relaxed">{children}</li>,
+              code: ({ className, children }) => {
+                const isBlock = className?.includes('language-');
+                return isBlock ? (
+                  <pre className="bg-muted/60 rounded-lg px-3 py-2 my-2 overflow-x-auto text-xs">
+                    <code className={className}>{children}</code>
+                  </pre>
+                ) : (
+                  <code className="bg-muted/60 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
+                );
+              },
+              pre: ({ children }) => <>{children}</>,
+              blockquote: ({ children }) => (
+                <blockquote className="border-l-2 border-dm-coral/40 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        ) : (
+          message.content
+        )}
       </div>
 
       {/* Inline chart preview */}
