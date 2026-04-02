@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, BookOpen } from 'lucide-react';
+import { Send, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { sendMessage } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
@@ -33,7 +33,6 @@ export function CompanionPanel() {
       const response = await sendMessage(userMessage, datasetId);
       addMessage(response);
 
-      // If response has a chart, auto-add it as a new panel on the dashboard
       if (response.chart_config) {
         addPanel(response.chart_config, 'chat');
       }
@@ -49,22 +48,28 @@ export function CompanionPanel() {
   };
 
   return (
-    <aside className="w-96 border-l border-stone-200 bg-white flex flex-col">
+    <aside className="w-[400px] border-l border-border/60 bg-white/80 backdrop-blur-md flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-stone-200 flex items-center justify-between">
+      <div className="p-4 border-b border-border/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
-            <span className="text-sm font-bold text-indigo-600">M</span>
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-dm-coral via-dm-amber to-dm-teal flex items-center justify-center shadow-sm shadow-dm-coral/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            {/* Online indicator */}
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-stone-800 text-sm">Muse</h2>
-            <p className="text-xs text-stone-400">Your friendly data analyst</p>
+            <h2 className="font-display font-bold text-dm-slate text-sm">Muse</h2>
+            <p className="text-xs text-muted-foreground">Your data analyst</p>
           </div>
         </div>
         {datasetId && (
           <button
             onClick={() => setStoryMode(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-xs font-display font-semibold text-dm-coral
+                       hover:text-dm-coral/80 bg-dm-coral-light hover:bg-dm-coral/10 px-3 py-2 rounded-xl
+                       transition-all duration-200 hover:shadow-sm"
           >
             <BookOpen className="w-3.5 h-3.5" />
             Build Story
@@ -73,42 +78,58 @@ export function CompanionPanel() {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-auto p-4 space-y-5">
         {messages.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-stone-400 text-sm">Upload a CSV to start chatting with Muse</p>
+          <div className="text-center py-12 animate-fade-up">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-dm-coral/10 to-dm-amber/10 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-dm-coral/50" />
+            </div>
+            <p className="text-muted-foreground text-sm font-medium">Upload a CSV to start chatting</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Muse will analyze it and suggest insights</p>
           </div>
         )}
         {messages.map((msg, i) => (
           <ChatMessage key={i} message={msg} />
         ))}
         {isChatLoading && (
-          <div className="flex items-center gap-2 text-stone-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <div className="flex items-center gap-3 text-muted-foreground animate-fade-in">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dm-coral/10 to-dm-amber/10 flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin text-dm-coral" />
+            </div>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-dm-coral/40 animate-pulse-soft" />
+              <span className="w-2 h-2 rounded-full bg-dm-amber/40 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
+              <span className="w-2 h-2 rounded-full bg-dm-teal/40 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
+            </div>
             <span className="text-sm">Muse is thinking...</span>
           </div>
         )}
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-stone-200">
+      <div className="p-4 border-t border-border/60 bg-white/60">
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={datasetId ? "Ask about your data..." : "Upload a CSV first"}
+            placeholder={datasetId ? "Ask Muse about your data..." : "Upload a CSV first"}
             disabled={!datasetId || isChatLoading}
-            className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm
-                       focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400
-                       disabled:bg-stone-50 disabled:text-stone-300"
+            className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm bg-white
+                       focus:outline-none focus:ring-2 focus:ring-dm-coral/20 focus:border-dm-coral/40
+                       disabled:bg-muted disabled:text-muted-foreground/40
+                       placeholder:text-muted-foreground/50
+                       transition-all duration-200"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || !datasetId || isChatLoading}
-            className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700
-                       disabled:bg-stone-200 disabled:text-stone-400 transition-colors"
+            className="p-2.5 bg-gradient-to-r from-dm-coral to-dm-amber text-white rounded-xl
+                       hover:shadow-md hover:shadow-dm-coral/20 hover:scale-105
+                       disabled:from-muted disabled:to-muted disabled:text-muted-foreground/40
+                       disabled:shadow-none disabled:scale-100
+                       transition-all duration-200"
           >
             <Send className="w-4 h-4" />
           </button>

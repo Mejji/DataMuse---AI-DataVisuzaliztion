@@ -1,7 +1,31 @@
 import { useCallback, useState } from 'react';
-import { Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, BarChart3, MessageCircle, BookOpen, Sparkles } from 'lucide-react';
 import { uploadCSV, getAnalysis } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
+
+const FEATURES = [
+  {
+    icon: MessageCircle,
+    title: 'Chat with your data',
+    description: 'Ask questions in plain English. Muse understands what you need.',
+    color: 'from-dm-coral to-dm-amber',
+    bgColor: 'bg-dm-coral-light',
+  },
+  {
+    icon: BarChart3,
+    title: 'Beautiful charts, instantly',
+    description: 'Get visualizations that tell the story your data wants to share.',
+    color: 'from-dm-teal to-dm-sky',
+    bgColor: 'bg-dm-teal-light',
+  },
+  {
+    icon: BookOpen,
+    title: 'Build data stories',
+    description: 'Turn your findings into chapters that anyone can understand.',
+    color: 'from-dm-violet to-dm-sky',
+    bgColor: 'bg-violet-50',
+  },
+];
 
 export function UploadZone() {
   const [isDragging, setIsDragging] = useState(false);
@@ -18,18 +42,15 @@ export function UploadZone() {
       const result = await uploadCSV(file);
       setDataset(result.dataset_id, result.profile);
 
-      // Add welcome message from Muse
       addMessage({
         role: 'muse',
         content: `Hey! I just looked through your file "${result.profile.filename}" — you've got ${result.profile.row_count.toLocaleString()} rows and ${result.profile.column_count} columns to work with. Let me pull up some interesting ways to look at this data...`,
         timestamp: new Date().toISOString(),
       });
 
-      // Fetch AI suggestions
       const analysis = await getAnalysis(result.dataset_id);
       setSuggestions(analysis.suggestions);
 
-      // Auto-add the first 2 suggestions to the dashboard so it's not empty
       analysis.suggestions.slice(0, 2).forEach((s: any) => {
         if (s.chart_config) {
           addPanel(s.chart_config, 'suggestion');
@@ -46,7 +67,7 @@ export function UploadZone() {
     } finally {
       setUploading(false);
     }
-  }, [setUploading, setDataset, setSuggestions, addMessage]);
+  }, [setUploading, setDataset, setSuggestions, addMessage, addPanel]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -61,55 +82,140 @@ export function UploadZone() {
   }, [handleFile]);
 
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div
-        className={`
-          w-full max-w-lg border-2 border-dashed rounded-2xl p-12
-          flex flex-col items-center gap-4 transition-all cursor-pointer
-          ${isDragging
-            ? 'border-indigo-400 bg-indigo-50'
-            : 'border-stone-300 bg-white hover:border-stone-400 hover:bg-stone-50'
-          }
-          ${isUploading ? 'pointer-events-none opacity-60' : ''}
-        `}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => document.getElementById('csv-input')?.click()}
-      >
-        {isUploading ? (
-          <>
-            <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-            <p className="text-stone-600 font-medium">Analyzing your data...</p>
-            <p className="text-sm text-stone-400">This usually takes a few seconds</p>
-          </>
-        ) : (
-          <>
-            <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center">
-              {isDragging ? (
-                <FileSpreadsheet className="w-8 h-8 text-indigo-500" />
+    <div className="flex-1 overflow-auto bg-mesh-warm relative">
+      {/* Decorative background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-dm-coral/5 rounded-full blur-3xl animate-blob" />
+        <div className="absolute top-1/2 -left-48 w-80 h-80 bg-dm-teal/5 rounded-full blur-3xl animate-blob" style={{ animationDelay: '2s' }} />
+        <div className="absolute -bottom-24 right-1/4 w-72 h-72 bg-dm-amber/5 rounded-full blur-3xl animate-blob" style={{ animationDelay: '4s' }} />
+      </div>
+
+      <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
+        {/* Hero section */}
+        <div className="text-center mb-12 stagger-children">
+          {/* Muse avatar */}
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-dm-coral via-dm-amber to-dm-teal shadow-lg shadow-dm-coral/20 mb-6 animate-float">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+
+          <h2 className="font-display text-4xl font-extrabold text-dm-slate tracking-tight mb-4">
+            Hi, I'm <span className="bg-gradient-to-r from-dm-coral to-dm-amber bg-clip-text text-transparent">Muse</span>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
+            Your friendly data analyst. Drop a spreadsheet and I'll help you find
+            the stories hiding in your numbers — no tech skills needed.
+          </p>
+        </div>
+
+        {/* Upload area */}
+        <div className="mb-16 animate-fade-up" style={{ animationDelay: '200ms' }}>
+          <div
+            className={`
+              relative w-full border-2 border-dashed rounded-3xl p-10
+              flex flex-col items-center gap-5 transition-all duration-300 cursor-pointer
+              group overflow-hidden
+              ${isDragging
+                ? 'border-dm-coral bg-dm-coral-light/80 scale-[1.02] shadow-xl shadow-dm-coral/10'
+                : 'border-border hover:border-dm-coral/40 bg-white/60 backdrop-blur-sm hover:bg-white/90 hover:shadow-lg hover:shadow-dm-coral/5'
+              }
+              ${isUploading ? 'pointer-events-none' : ''}
+            `}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('csv-input')?.click()}
+          >
+            {/* Subtle animated ring on hover */}
+            <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="absolute inset-[-1px] rounded-3xl bg-gradient-to-r from-dm-coral/20 via-dm-amber/20 to-dm-teal/20 animate-gradient" />
+              <div className="absolute inset-[1px] rounded-3xl bg-white/90" />
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center gap-4">
+              {isUploading ? (
+                <>
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-dm-coral to-dm-amber flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-dm-coral to-dm-amber animate-ping opacity-20" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-foreground font-display font-semibold text-lg">Analyzing your data...</p>
+                    <p className="text-sm text-muted-foreground mt-1">Muse is reading through every column and row</p>
+                  </div>
+                </>
               ) : (
-                <Upload className="w-8 h-8 text-indigo-500" />
+                <>
+                  <div className={`
+                    w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300
+                    ${isDragging
+                      ? 'bg-gradient-to-br from-dm-coral to-dm-amber scale-110 shadow-lg shadow-dm-coral/30'
+                      : 'bg-gradient-to-br from-dm-coral/10 to-dm-amber/10 group-hover:from-dm-coral/20 group-hover:to-dm-amber/20'
+                    }
+                  `}>
+                    {isDragging ? (
+                      <FileSpreadsheet className="w-8 h-8 text-white" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-dm-coral group-hover:scale-110 transition-transform duration-300" />
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <p className="text-foreground font-display font-semibold text-lg">
+                      {isDragging ? 'Drop it right here!' : 'Drop your CSV file here'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      or <span className="text-dm-coral font-medium underline underline-offset-2 decoration-dm-coral/30 group-hover:decoration-dm-coral/60 transition-colors">browse your files</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                    <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
+                    CSV files up to 50MB
+                    <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
+                    Up to 50,000 rows
+                  </div>
+                </>
               )}
             </div>
-            <div className="text-center">
-              <p className="text-stone-700 font-medium">
-                {isDragging ? 'Drop it right here!' : 'Drop your CSV file here'}
-              </p>
-              <p className="text-sm text-stone-400 mt-1">
-                or click to browse your files
+            <input
+              id="csv-input"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+
+        {/* Feature cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="group relative bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-border/50
+                         hover:bg-white hover:shadow-lg hover:shadow-dm-coral/5 hover:border-border
+                         transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className={`w-10 h-10 rounded-xl ${feature.bgColor} flex items-center justify-center mb-4
+                              group-hover:scale-110 transition-transform duration-300`}>
+                <feature.icon className={`w-5 h-5 bg-gradient-to-br ${feature.color} bg-clip-text`}
+                  style={{ color: feature.color.includes('coral') ? '#f97066' : feature.color.includes('teal') ? '#14b8a6' : '#8b5cf6' }}
+                />
+              </div>
+              <h3 className="font-display font-bold text-dm-slate text-sm mb-1.5">
+                {feature.title}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {feature.description}
               </p>
             </div>
-            <p className="text-xs text-stone-300">Up to 50MB, max 50,000 rows</p>
-          </>
-        )}
-        <input
-          id="csv-input"
-          type="file"
-          accept=".csv"
-          className="hidden"
-          onChange={handleInputChange}
-        />
+          ))}
+        </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-muted-foreground/50 mt-12 animate-fade-in" style={{ animationDelay: '600ms' }}>
+          Your data stays private and is never shared. Muse analyzes everything locally.
+        </p>
       </div>
     </div>
   );

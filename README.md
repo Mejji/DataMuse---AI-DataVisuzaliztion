@@ -18,7 +18,7 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Recharts, Zustand |
 | Backend | Python, FastAPI, Pandas, SentenceTransformers |
-| LLM | Groq (Llama 3.3 70B) with function calling |
+| LLM | Groq (Llama 3.3 70B) with function calling, OpenRouter/Qwen3.6 fallback |
 | Vector DB | Qdrant (Docker) |
 
 ## Quick Start
@@ -132,6 +132,8 @@ AI-Visualization/
 |----------|-------------|---------|
 | `GROQ_API_KEY` | Groq API key ([console.groq.com](https://console.groq.com)) | — |
 | `GROQ_MODEL` | LLM model name | `llama-3.3-70b-versatile` |
+| `OPENROUTER_API_KEY` | OpenRouter API key for fallback ([openrouter.ai](https://openrouter.ai)) | — |
+| `OPENROUTER_MODEL` | Fallback model name | `qwen/qwen3.6-plus-preview:free` |
 | `QDRANT_HOST` | Qdrant hostname | `localhost` |
 | `QDRANT_PORT` | Qdrant port | `6333` |
 

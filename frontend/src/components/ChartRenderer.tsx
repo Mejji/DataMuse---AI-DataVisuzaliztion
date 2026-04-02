@@ -5,18 +5,29 @@ import {
 } from 'recharts';
 import type { ChartConfig } from '../lib/api';
 
-const DEFAULT_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+// Warm, distinctive palette matching the DataMuse brand
+const DEFAULT_COLORS = ['#f97066', '#f59e0b', '#14b8a6', '#38bdf8', '#8b5cf6', '#ec4899'];
 
 interface ChartRendererProps {
   config: ChartConfig;
   height?: number;
 }
 
+const tooltipStyle = {
+  borderRadius: '12px',
+  border: '1px solid #ebe7e3',
+  fontSize: '13px',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+  fontFamily: '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif',
+};
+
+const axisStyle = { fontSize: 11, fontFamily: '"Geist Variable", sans-serif' };
+
 export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
   const { chart_type, title, data, config: chartConfig } = config;
 
   if (!data || !data.length) {
-    return <p className="text-stone-400 text-sm">No data to display</p>;
+    return <p className="text-muted-foreground text-sm">No data to display</p>;
   }
 
   const renderChart = () => {
@@ -24,15 +35,13 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'bar':
         return (
           <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e7e5e4', fontSize: '13px' }}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
+            <YAxis tick={axisStyle} stroke="#b8b0a8" />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
-              <Bar key={s.dataKey} dataKey={s.dataKey} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={[4, 4, 0, 0]} />
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={[6, 6, 0, 0]} />
             ))}
           </BarChart>
         );
@@ -40,13 +49,13 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'line':
         return (
           <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e7e5e4' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
+            <YAxis tick={axisStyle} stroke="#b8b0a8" />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
-              <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
+              <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2 }} />
             ))}
           </LineChart>
         );
@@ -67,7 +76,7 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
                 <Cell key={i} fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
           </PieChart>
         );
@@ -75,13 +84,13 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'area':
         return (
           <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e7e5e4' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
+            <YAxis tick={axisStyle} stroke="#b8b0a8" />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => (
-              <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.2} />
+              <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.15} />
             ))}
           </AreaChart>
         );
@@ -89,10 +98,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'scatter':
         return (
           <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid stroke="#e7e5e4" />
-            <XAxis type="number" dataKey={chartConfig.xAxisKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e7e5e4' }} />
+            <CartesianGrid stroke="#ebe7e3" />
+            <XAxis type="number" dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
+            <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey} tick={axisStyle} stroke="#b8b0a8" />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
             <Scatter data={data} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[0]} />
           </ScatterChart>
@@ -101,30 +110,30 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'composed':
         return (
           <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey={chartConfig.xAxisKey} tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#a8a29e" />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e7e5e4' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ebe7e3" />
+            <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke="#b8b0a8" />
+            <YAxis tick={axisStyle} stroke="#b8b0a8" />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
             {chartConfig.series.map((s, i) => {
               const color = s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length];
               switch (s.type) {
-                case 'line': return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} />;
-                case 'area': return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} fill={color} fillOpacity={0.2} />;
-                default: return <Bar key={s.dataKey} dataKey={s.dataKey} fill={color} radius={[4, 4, 0, 0]} />;
+                case 'line': return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={2.5} />;
+                case 'area': return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} fill={color} fillOpacity={0.15} />;
+                default: return <Bar key={s.dataKey} dataKey={s.dataKey} fill={color} radius={[6, 6, 0, 0]} />;
               }
             })}
           </ComposedChart>
         );
 
       default:
-        return <p className="text-stone-400">Unsupported chart type: {chart_type}</p>;
+        return <p className="text-muted-foreground">Unsupported chart type: {chart_type}</p>;
     }
   };
 
   return (
     <div className="w-full">
-      {title && <h3 className="text-sm font-medium text-stone-700 mb-3">{title}</h3>}
+      {title && <h3 className="text-sm font-display font-semibold text-dm-slate mb-3">{title}</h3>}
       <ResponsiveContainer width="100%" height={height}>
         {renderChart()}
       </ResponsiveContainer>
