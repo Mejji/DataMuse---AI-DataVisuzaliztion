@@ -1,7 +1,34 @@
 import { useCallback, useState } from 'react';
 import { Upload, FileSpreadsheet, Loader2, BarChart3, MessageCircle, BookOpen, Sparkles } from 'lucide-react';
 import { uploadCSV, getAnalysis } from '../lib/api';
+import type { DatasetProfile } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
+
+function generateSuggestedPrompts(profile: DatasetProfile): string[] {
+  const prompts: string[] = [];
+  const numericCols = profile.columns.filter(c => c.dtype.includes('int') || c.dtype.includes('float'));
+  const categoricalCols = profile.columns.filter(c => c.dtype === 'object' || (c.unique_count <= 10 && c.unique_count > 1));
+  
+  if (numericCols.length > 0) {
+    prompts.push(`What's the average ${numericCols[0].name.toLowerCase().replace(/_/g, ' ')}?`);
+  }
+  if (categoricalCols.length > 0) {
+    prompts.push(`Show me a breakdown by ${categoricalCols[0].name.toLowerCase().replace(/_/g, ' ')}`);
+  }
+  if (numericCols.length >= 2) {
+    prompts.push(`Compare ${numericCols[0].name.toLowerCase().replace(/_/g, ' ')} vs ${numericCols[1].name.toLowerCase().replace(/_/g, ' ')}`);
+  }
+  if (profile.row_count > 10) {
+    prompts.push("What are the most interesting patterns in this data?");
+  }
+  if (numericCols.length > 0 && categoricalCols.length > 0) {
+    prompts.push(`Which ${categoricalCols[0].name.toLowerCase().replace(/_/g, ' ')} has the highest ${numericCols[0].name.toLowerCase().replace(/_/g, ' ')}?`);
+  }
+  // Always include a general exploration prompt
+  prompts.push("Give me a summary of this dataset");
+  
+  return prompts.slice(0, 5); // Max 5 prompts
+}
 
 const FEATURES = [
   {
@@ -29,7 +56,7 @@ const FEATURES = [
 
 export function UploadZone() {
   const [isDragging, setIsDragging] = useState(false);
-  const { isUploading, setUploading, setDataset, setSuggestions, addMessage, addPanel } = useDataStore();
+  const { isUploading, setUploading, setDataset, setSuggestions, addMessage, addPanel, setAnalyzing, setSuggestedPrompts } = useDataStore();
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -41,6 +68,7 @@ export function UploadZone() {
     try {
       const result = await uploadCSV(file);
       setDataset(result.dataset_id, result.profile);
+      setSuggestedPrompts(generateSuggestedPrompts(result.profile));
 
       addMessage({
         role: 'muse',
@@ -48,26 +76,37 @@ export function UploadZone() {
         timestamp: new Date().toISOString(),
       });
 
-      const analysis = await getAnalysis(result.dataset_id);
-      setSuggestions(analysis.suggestions);
+      setAnalyzing(true);
+      try {
+        const analysis = await getAnalysis(result.dataset_id);
+        setSuggestions(analysis.suggestions);
 
-      analysis.suggestions.slice(0, 2).forEach((s: any) => {
-        if (s.chart_config) {
-          addPanel(s.chart_config, 'suggestion');
-        }
-      });
+        analysis.suggestions.slice(0, 2).forEach((s: any) => {
+          if (s.chart_config) {
+            addPanel(s.chart_config, 'suggestion');
+          }
+        });
 
-      addMessage({
-        role: 'muse',
-        content: `I found ${analysis.suggestions.length} visualizations that I think will be really helpful. I've put the top two on your dashboard already! Click any others below to add them, or ask me to show you something specific.`,
-        timestamp: new Date().toISOString(),
-      });
+        addMessage({
+          role: 'muse',
+          content: `I found ${analysis.suggestions.length} visualizations that I think will be really helpful. I've put the top two on your dashboard already! Click any others below to add them, or ask me to show you something specific.`,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (analysisError) {
+        addMessage({
+          role: 'muse',
+          content: "I wasn't able to analyze the data right now, but you can still ask me anything! Just type a question below.",
+          timestamp: new Date().toISOString(),
+        });
+      } finally {
+        setAnalyzing(false);
+      }
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
-  }, [setUploading, setDataset, setSuggestions, addMessage, addPanel]);
+  }, [setUploading, setDataset, setSuggestions, addMessage, addPanel, setAnalyzing, setSuggestedPrompts]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

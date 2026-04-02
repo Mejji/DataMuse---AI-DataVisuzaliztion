@@ -14,10 +14,12 @@ interface DataState {
   datasetId: string | null;
   profile: DatasetProfile | null;
   isUploading: boolean;
+  isAnalyzing: boolean;
 
   // Chat
   messages: ChatMessage[];
   isChatLoading: boolean;
+  suggestedPrompts: string[];
 
   // Interactive Dashboard — accumulating multi-panel
   dashboardPanels: DashboardPanel[];
@@ -35,8 +37,10 @@ interface DataState {
   // Actions
   setDataset: (id: string, profile: DatasetProfile) => void;
   setUploading: (v: boolean) => void;
+  setAnalyzing: (v: boolean) => void;
   addMessage: (msg: ChatMessage) => void;
   setChatLoading: (v: boolean) => void;
+  setSuggestedPrompts: (prompts: string[]) => void;
 
   // Dashboard panel actions
   addPanel: (chart: ChartConfig, source: DashboardPanel['source']) => void;
@@ -58,8 +62,10 @@ export const useDataStore = create<DataState>((set) => ({
   datasetId: null,
   profile: null,
   isUploading: false,
+  isAnalyzing: false,
   messages: [],
   isChatLoading: false,
+  suggestedPrompts: [],
   dashboardPanels: [],
   highlightedPanelId: null,
   suggestions: [],
@@ -70,8 +76,10 @@ export const useDataStore = create<DataState>((set) => ({
 
   setDataset: (id, profile) => set({ datasetId: id, profile, view: 'explore' }),
   setUploading: (v) => set({ isUploading: v }),
+  setAnalyzing: (v) => set({ isAnalyzing: v }),
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
   setChatLoading: (v) => set({ isChatLoading: v }),
+  setSuggestedPrompts: (prompts) => set({ suggestedPrompts: prompts }),
 
   // Dashboard panel management
   addPanel: (chart, source) => {
@@ -99,7 +107,7 @@ export const useDataStore = create<DataState>((set) => ({
   setStoryMode: (v) => set({ isStoryMode: v, view: v ? 'story' : 'explore' }),
   setView: (view) => set({ view }),
   reset: () => set({
-    datasetId: null, profile: null, messages: [], dashboardPanels: [],
+    datasetId: null, profile: null, isUploading: false, isAnalyzing: false, messages: [], isChatLoading: false, suggestedPrompts: [], dashboardPanels: [],
     highlightedPanelId: null,
     suggestions: [], pinnedInsights: [], story: null, isStoryMode: false, view: 'upload',
   }),

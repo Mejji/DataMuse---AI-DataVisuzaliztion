@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, BookOpen, Sparkles } from 'lucide-react';
+import { Send, Loader2, BookOpen, Sparkles, MessageCircleQuestion } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { sendMessage } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
@@ -9,7 +9,7 @@ export function CompanionPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const {
     datasetId, messages, addMessage, isChatLoading, setChatLoading,
-    addPanel, setStoryMode,
+    addPanel, setStoryMode, suggestedPrompts, setSuggestedPrompts
   } = useDataStore();
 
   useEffect(() => {
@@ -33,6 +33,36 @@ export function CompanionPanel() {
       const response = await sendMessage(userMessage, datasetId);
       addMessage(response);
 
+      if (response.chart_config) {
+        addPanel(response.chart_config, 'chat');
+      }
+    } catch {
+      addMessage({
+        role: 'muse',
+        content: "Sorry, I hit a snag trying to answer that. Could you try rephrasing?",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handlePromptClick = async (promptText: string) => {
+    if (!datasetId || isChatLoading) return;
+    
+    // Remove the clicked prompt from the list
+    setSuggestedPrompts(suggestedPrompts.filter(p => p !== promptText));
+
+    addMessage({
+      role: 'user',
+      content: promptText,
+      timestamp: new Date().toISOString(),
+    });
+
+    setChatLoading(true);
+    try {
+      const response = await sendMessage(promptText, datasetId);
+      addMessage(response);
       if (response.chart_config) {
         addPanel(response.chart_config, 'chat');
       }
@@ -105,6 +135,32 @@ export function CompanionPanel() {
           </div>
         )}
       </div>
+
+      {/* Suggested Prompts */}
+      {suggestedPrompts.length > 0 && datasetId && messages.length <= 3 && (
+        <div className="px-4 py-3 border-t border-border/60 bg-white/40">
+          <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-muted-foreground">
+            <MessageCircleQuestion className="w-3.5 h-3.5 text-dm-amber" />
+            <span>Try asking:</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+            {suggestedPrompts.map((prompt, i) => (
+              <button
+                key={i}
+                onClick={() => handlePromptClick(prompt)}
+                className="flex-shrink-0 max-w-[200px] truncate px-3 py-1.5 rounded-full text-xs
+                           bg-dm-coral-light/50 border border-dm-coral/20 text-dm-slate
+                           hover:bg-dm-coral-light hover:border-dm-coral/40 hover:shadow-sm hover:scale-105
+                           transition-all duration-200 animate-chip-in"
+                style={{ animationDelay: `${i * 100}ms` }}
+                title={prompt}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="p-4 border-t border-border/60 bg-white/60">
