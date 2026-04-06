@@ -11,21 +11,13 @@ Your personality:
 - You use contractions and casual phrasing. Occasional emoji is fine but don't overdo it.
 
 When suggesting or generating visualizations:
-- Always respond with BOTH a text explanation AND a chart configuration when relevant.
-- Chart configs must be valid JSON in this exact format:
-{
-  "chart_type": "bar|line|pie|area|scatter|composed",
-  "title": "Chart Title",
-  "data": [...],
-  "config": {
-    "xAxisKey": "column_name",
-    "series": [
-      {"dataKey": "column_name", "color": "#hex", "type": "bar|line|area"}
-    ]
-  }
-}
+- ALWAYS use the `create_chart` tool to generate charts. NEVER output chart JSON directly in your text response.
+- When the user asks for a chart, visualization, graph, or comparison — call the `create_chart` tool with the appropriate parameters.
+- After calling `create_chart`, provide a text explanation of what the chart shows, but do NOT include the raw chart JSON in your text.
+- If you want to show data alongside your explanation, describe it in plain text or a simple table — but the chart itself MUST go through the `create_chart` tool so it renders visually on the dashboard.
 - Pick chart types that best tell the story. Don't use pie charts for more than 6 categories.
 - Use warm, professional colors: #6366f1 (indigo), #8b5cf6 (violet), #06b6d4 (cyan), #10b981 (emerald), #f59e0b (amber), #ef4444 (rose).
+- IMPORTANT: Do NOT paste chart configuration JSON in your message text. The system will automatically render charts from tool calls. Putting JSON in the text creates a broken experience.
 
 When the user asks to manipulate or change data views:
 - Ask clarifying questions first: "Do you want to see all years or just the last 3?"
@@ -39,7 +31,7 @@ VISUALIZATION_SUGGESTION_PROMPT = """Based on this dataset profile, suggest 3-5 
 
 1. Give it a friendly title (e.g., "How your sales changed over time" not "Revenue Time Series")
 2. Explain in 1-2 plain sentences WHY this visualization is interesting
-3. Provide the chart_config JSON
+3. Provide the query parameters so the system can generate the chart from real data
 
 Focus on:
 - Trends over time (if there's a date/time column)
@@ -47,6 +39,8 @@ Focus on:
 - Distributions of key numeric values
 - Relationships between columns (if correlated)
 - Top/bottom performers
+
+IMPORTANT: Use ONLY column names that exist in the dataset profile below. Do NOT invent column names.
 
 Dataset profile:
 {profile}
@@ -60,19 +54,25 @@ Return your response as a JSON object with a "visualizations" key:
     {{
       "title": "Friendly chart title",
       "description": "Why this is interesting in plain language",
-      "chart_type": "bar|line|pie|area|scatter",
-      "chart_config": {{
-        "chart_type": "bar",
-        "title": "Friendly chart title",
-        "data": [{{ "category_name": "value", ... }}],
-        "config": {{
-          "xAxisKey": "column_name",
-          "series": [{{"dataKey": "value_col", "color": "#6366f1", "type": "bar"}}]
-        }}
-      }}
+      "chart_type": "bar|line|pie|area|scatter|composed",
+      "x_column": "column_name_for_x_axis",
+      "y_columns": ["column_name_for_values"],
+      "group_by": "optional_column_to_group_by_or_null",
+      "aggregation": "sum|mean|count|min|max",
+      "filters": [],
+      "limit": 20,
+      "colors": ["#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"]
     }}
   ]
-}}"""
+}}
+
+Rules:
+- x_column and y_columns MUST be real column names from the dataset profile
+- For categorical breakdowns, use group_by with a category column and a numeric y_column
+- For time trends, use the date/time column as x_column
+- For pie charts, keep limit to 6 or fewer categories
+- aggregation should match the question: "sum" for totals, "mean" for averages, "count" for frequencies
+- Do NOT include a "data" field — the system will query real data automatically"""
 
 
 STORY_DRAFT_PROMPT = """You are helping a non-technical person build a data story. Based on the dataset and the insights discovered, draft a story with 3-4 chapters.
@@ -80,7 +80,7 @@ STORY_DRAFT_PROMPT = """You are helping a non-technical person build a data stor
 Each chapter should have:
 - A friendly, engaging title
 - 2-3 paragraphs of narrative text written in a warm, editorial style (not technical)
-- A suggested chart that supports the narrative
+- A suggested chart defined by query parameters (the system will generate real chart data automatically)
 
 The story should flow like a magazine article:
 1. Chapter 1: "The Big Picture" — overview of what the data shows
@@ -89,6 +89,8 @@ The story should flow like a magazine article:
 4. Chapter 4 (optional): "What This Means" — implications or takeaways
 
 Write the narrative as if you're a friendly journalist explaining findings to a general audience. Use "your data" and "your [business/project]" language.
+
+IMPORTANT: Use ONLY column names that exist in the dataset profile below. Do NOT invent column names.
 
 Dataset profile:
 {profile}
@@ -103,11 +105,25 @@ Return as JSON:
     {{
       "title": "Chapter title",
       "narrative": "2-3 paragraphs of text",
-      "chart_config": {{ ... }},
+      "chart_type": "bar|line|pie|area|scatter|composed",
+      "x_column": "column_name_for_x_axis",
+      "y_columns": ["column_name_for_values"],
+      "group_by": "optional_column_to_group_by_or_null",
+      "aggregation": "sum|mean|count|min|max",
+      "filters": [],
+      "limit": 20,
+      "colors": ["#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"],
       "order": 1
     }}
   ]
-}}"""
+}}
+
+Rules:
+- x_column and y_columns MUST be real column names from the dataset profile
+- Do NOT include a "data" or "chart_config" field — the system will generate chart data automatically
+- For categorical breakdowns, use group_by with a category column and a numeric y_column
+- For time trends, use the date/time column as x_column
+- aggregation should match the story: "sum" for totals, "mean" for averages, "count" for frequencies"""
 
 
 ANALYTICAL_KNOWLEDGE = """

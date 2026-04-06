@@ -41,5 +41,4 @@ pnpm-debug.log*
 docker-compose.override.yml
 
 # ===== OS =====
-.DS_Store
 desktop.ini

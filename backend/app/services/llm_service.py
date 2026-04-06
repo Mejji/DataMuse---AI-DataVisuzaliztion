@@ -13,6 +13,89 @@ from app.services.embeddings import embed_text
 from app.services.qdrant_service import search
 from app.services.data_tools import TOOL_DEFINITIONS, execute_tool
 
+
+# ---------------------------------------------------------------------------
+# Fallback chart extraction
+#
+# Some models ignore function calling and dump chart JSON inline in their
+# text response.  This helper scans the text for anything that looks like
+# a valid chart config, extracts it, and returns cleaned text + config.
+# ---------------------------------------------------------------------------
+_CHART_JSON_RE = re.compile(
+    r'(\{[^{}]*"chart_type"\s*:\s*"[^"]+?"[^{}]*"data"\s*:\s*\[.*?\]\s*,\s*"config"\s*:\s*\{.*?\}\s*\})',
+    re.DOTALL,
+)
+
+_CHART_TYPE_VALUES = {"bar", "line", "pie", "area", "scatter", "composed"}
+
+
+def _extract_chart_from_text(text: str) -> tuple[str, dict | None]:
+    """Try to extract an inline chart JSON from the assistant's text response.
+
+    Returns (cleaned_text, chart_config_or_None).
+    """
+    if not text:
+        return text, None
+
+    # Strategy: find JSON objects that contain the chart config signature
+    # Look for { ... "chart_type": ... "data": [...] ... "config": { ... } ... }
+    candidates: list[tuple[int, int, dict]] = []
+
+    # Find all positions where "chart_type" appears
+    search_start = 0
+    while True:
+        idx = text.find('"chart_type"', search_start)
+        if idx == -1:
+            break
+
+        # Walk backwards to find the opening brace
+        brace_start = text.rfind('{', 0, idx)
+        if brace_start == -1:
+            search_start = idx + 1
+            continue
+
+        # Try to parse increasingly larger substrings starting from brace_start
+        depth = 0
+        for i in range(brace_start, len(text)):
+            if text[i] == '{':
+                depth += 1
+            elif text[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    candidate_str = text[brace_start:i + 1]
+                    try:
+                        obj = json.loads(candidate_str)
+                        if (
+                            isinstance(obj, dict)
+                            and obj.get("chart_type") in _CHART_TYPE_VALUES
+                            and isinstance(obj.get("data"), list)
+                            and isinstance(obj.get("config"), dict)
+                        ):
+                            candidates.append((brace_start, i + 1, obj))
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                    break
+
+        search_start = idx + 1
+
+    if not candidates:
+        return text, None
+
+    # Use the largest valid candidate (most complete chart config)
+    best = max(candidates, key=lambda c: c[1] - c[0])
+    start, end, chart_config = best
+
+    # Remove the JSON from the text
+    cleaned = text[:start] + text[end:]
+    # Clean up leftover whitespace / empty lines
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+
+    print(f"[chart-extractor] Extracted inline chart config from text "
+          f"(chart_type={chart_config.get('chart_type')}, "
+          f"data_points={len(chart_config.get('data', []))})")
+
+    return cleaned, chart_config
+
 # ---------------------------------------------------------------------------
 # Groq client
 # ---------------------------------------------------------------------------
@@ -272,6 +355,16 @@ def chat_with_muse(
         msg = response.choices[0].message
 
     text_content = msg.content or ""
+
+    # -----------------------------------------------------------------------
+    # Fallback: some models ignore function calling and dump chart JSON
+    # directly in their text response.  If we didn't get a chart_config from
+    # tool calls, try to extract one from the text and clean the message.
+    # -----------------------------------------------------------------------
+    if chart_config is None and text_content:
+        text_content, extracted_chart = _extract_chart_from_text(text_content)
+        if extracted_chart is not None:
+            chart_config = extracted_chart
 
     return {
         "content": text_content,

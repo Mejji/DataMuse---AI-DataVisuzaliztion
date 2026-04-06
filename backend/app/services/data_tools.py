@@ -9,11 +9,11 @@ from typing import Optional
 
 def query_data(
     df: pd.DataFrame,
-    columns: list[str] = None,
-    filters: list[dict] = None,
-    group_by: list[str] = None,
+    columns: Optional[list[str]] = None,
+    filters: Optional[list[dict]] = None,
+    group_by: Optional[list[str]] = None,
     aggregation: str = "sum",
-    sort_by: str = None,
+    sort_by: Optional[str] = None,
     sort_ascending: bool = True,
     limit: int = 50,
 ) -> dict:
@@ -285,11 +285,11 @@ def create_chart_data(
     chart_type: str,
     x_column: str,
     y_columns: list[str],
-    group_by: str = None,
+    group_by: Optional[str] = None,
     aggregation: str = "sum",
-    filters: list[dict] = None,
+    filters: Optional[list[dict]] = None,
     limit: int = 20,
-    colors: list[str] = None,
+    colors: Optional[list[str]] = None,
 ) -> dict:
     """
     Prepare data and config for a Recharts visualization.

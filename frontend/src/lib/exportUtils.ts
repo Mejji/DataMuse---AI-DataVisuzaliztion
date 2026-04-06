@@ -4,45 +4,108 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
 /**
- * Convert all SVG elements inside a cloned DOM node to canvas elements
- * so html2canvas can capture them properly.
+ * Get dimensions from an SVG element using attributes, viewBox, or fallback.
+ * Works even when the SVG is off-screen or in a cloned node.
  */
-const convertSvgsToCanvas = async (container: HTMLElement): Promise<void> => {
-  const svgs = container.querySelectorAll('svg');
-  for (const svg of Array.from(svgs)) {
-    try {
-      const rect = svg.getBoundingClientRect();
-      const width = rect.width || svg.clientWidth || 300;
-      const height = rect.height || svg.clientHeight || 200;
+const getSvgDimensions = (svg: SVGSVGElement): { width: number; height: number } => {
+  // Priority 1: explicit width/height attributes (Recharts sets these)
+  const attrW = svg.getAttribute('width');
+  const attrH = svg.getAttribute('height');
+  if (attrW && attrH) {
+    const w = parseFloat(attrW);
+    const h = parseFloat(attrH);
+    if (w > 0 && h > 0) return { width: w, height: h };
+  }
 
-      const svgData = new XMLSerializer().serializeToString(svg);
+  // Priority 2: viewBox attribute
+  const viewBox = svg.getAttribute('viewBox');
+  if (viewBox) {
+    const parts = viewBox.split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      return { width: parts[2], height: parts[3] };
+    }
+  }
+
+  // Priority 3: getBoundingClientRect (works for visible elements)
+  const rect = svg.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    return { width: rect.width, height: rect.height };
+  }
+
+  // Priority 4: clientWidth/clientHeight
+  if (svg.clientWidth > 0 && svg.clientHeight > 0) {
+    return { width: svg.clientWidth, height: svg.clientHeight };
+  }
+
+  // Fallback
+  return { width: 400, height: 300 };
+};
+
+/**
+ * Convert all SVG elements inside a container to canvas elements
+ * so html2canvas can capture them properly.
+ *
+ * When `originalContainer` is provided, SVG dimensions are read from the
+ * original (visible) DOM, which avoids the zero-size problem with off-screen clones.
+ */
+const convertSvgsToCanvas = async (
+  container: HTMLElement,
+  originalContainer?: HTMLElement,
+): Promise<void> => {
+  const svgs = Array.from(container.querySelectorAll('svg'));
+  const originalSvgs = originalContainer
+    ? Array.from(originalContainer.querySelectorAll('svg'))
+    : svgs;
+
+  for (let i = 0; i < svgs.length; i++) {
+    const svg = svgs[i];
+    // Use the original (visible) SVG for dimension reading when available
+    const refSvg = (originalSvgs[i] ?? svg) as SVGSVGElement;
+    try {
+      const { width, height } = getSvgDimensions(refSvg);
+
+      // Serialize the clone's SVG (it has the same content)
+      const serializer = new XMLSerializer();
+      let svgData = serializer.serializeToString(svg);
+
+      // Ensure the serialized SVG has explicit dimensions and xmlns
+      if (!svgData.includes('xmlns')) {
+        svgData = svgData.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
 
       const img = new Image();
+      img.width = width;
+      img.height = height;
       img.src = url;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('SVG image load failed'));
-        // Timeout fallback
-        setTimeout(() => resolve(), 3000);
+
+      await new Promise<void>((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+        } else {
+          img.onload = () => resolve();
+          img.onerror = () => resolve(); // proceed even on error
+          setTimeout(() => resolve(), 5000);
+        }
       });
 
+      const scale = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = width * 2;
-      canvas.height = height * 2;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.scale(2, 2);
+        ctx.scale(scale, scale);
         ctx.drawImage(img, 0, 0, width, height);
       }
 
       svg.parentNode?.replaceChild(canvas, svg);
       URL.revokeObjectURL(url);
     } catch {
-      // If SVG conversion fails, skip it — html2canvas will do its best
       console.warn('Skipped SVG conversion for one element');
     }
   }
@@ -55,20 +118,29 @@ export const exportChartAsPDF = async (elementId: string, title: string) => {
   try {
     // Clone to avoid mutating the live DOM
     const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
+    // Use visibility:hidden so the clone keeps its layout/dimensions
+    clone.style.position = 'fixed';
     clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.visibility = 'hidden';
+    clone.style.zIndex = '-9999';
     clone.style.width = `${element.offsetWidth}px`;
+    clone.style.height = `${element.offsetHeight}px`;
+    clone.style.overflow = 'visible';
     document.body.appendChild(clone);
 
-    await convertSvgsToCanvas(clone);
+    // Pass original element so SVG dimensions are read from visible DOM
+    await convertSvgsToCanvas(clone, element);
 
+    // Temporarily make visible for html2canvas capture
+    clone.style.visibility = 'visible';
     const captured = await html2canvas(clone, {
       scale: 2,
       backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
       useCORS: true,
       logging: false,
     });
+    clone.style.visibility = 'hidden';
 
     document.body.removeChild(clone);
 
@@ -98,20 +170,31 @@ export const exportDashboardAsPDF = async (elementId: string = 'dashboard-grid')
 
   try {
     const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
+    // Use visibility:hidden so the clone keeps its layout/dimensions
+    clone.style.position = 'fixed';
     clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.visibility = 'hidden';
+    clone.style.zIndex = '-9999';
     clone.style.width = `${element.offsetWidth}px`;
+    clone.style.height = `${element.scrollHeight}px`;
+    clone.style.overflow = 'visible';
     document.body.appendChild(clone);
 
-    await convertSvgsToCanvas(clone);
+    // Pass original element so SVG dimensions are read from visible DOM
+    await convertSvgsToCanvas(clone, element);
 
+    // Temporarily make visible for html2canvas capture
+    clone.style.visibility = 'visible';
     const captured = await html2canvas(clone, {
       scale: 2,
       backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
       useCORS: true,
       logging: false,
+      scrollY: 0,
+      scrollX: 0,
     });
+    clone.style.visibility = 'hidden';
 
     document.body.removeChild(clone);
 
