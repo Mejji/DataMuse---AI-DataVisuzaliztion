@@ -61,8 +61,10 @@ export function UploadZone() {
   const { isUploading, setUploading, setDataset, setSuggestions, addMessage, addPanel, setAnalyzing, setSuggestedPrompts } = useDataStore();
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      alert('Please upload a CSV file');
+    const allowedExtensions = ['.csv', '.xlsx', '.xls', '.tsv', '.json', '.parquet'];
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      alert('Supported formats: CSV, XLSX, XLS, TSV, JSON, Parquet');
       return;
     }
 
@@ -203,7 +205,7 @@ export function UploadZone() {
                   </div>
                   <div className="text-center">
                     <p className="text-foreground font-display font-semibold text-lg">
-                      {isDragging ? 'Drop it right here!' : 'Drop your CSV file here'}
+                      {isDragging ? 'Drop it right here!' : 'Drop your data file here'}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       or <span className="text-dm-coral font-medium underline underline-offset-2 decoration-dm-coral/30 group-hover:decoration-dm-coral/60 transition-colors">browse your files</span>
@@ -211,7 +213,7 @@ export function UploadZone() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
                     <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
-                    CSV files up to 50MB
+                    CSV, Excel, TSV, JSON, Parquet
                     <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
                     Up to 50,000 rows
                   </div>
@@ -221,7 +223,7 @@ export function UploadZone() {
             <input
               id="csv-input"
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls,.tsv,.json,.parquet"
               className="hidden"
               onChange={handleInputChange}
             />

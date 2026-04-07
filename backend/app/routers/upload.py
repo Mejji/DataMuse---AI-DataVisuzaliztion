@@ -2,6 +2,7 @@ import gc
 import asyncio
 import pandas as pd
 import uuid
+from pathlib import Path
 from collections import OrderedDict
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services.csv_profiler import profile_csv
@@ -9,6 +10,38 @@ from app.services.embeddings import ingest_dataset
 from app.config import settings
 
 router = APIRouter(prefix="/api", tags=["upload"])
+
+# ---------------------------------------------------------------------------
+# Supported file formats → parser map
+# ---------------------------------------------------------------------------
+SUPPORTED_EXTENSIONS = {".csv", ".xlsx", ".xls", ".tsv", ".json", ".parquet"}
+
+
+def _parse_upload(file: UploadFile) -> pd.DataFrame:
+    """Parse an uploaded file into a DataFrame based on its extension."""
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Accepted: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+        )
+    try:
+        if ext == ".csv":
+            return pd.read_csv(file.file)
+        elif ext in (".xlsx", ".xls"):
+            return pd.read_excel(file.file, engine="openpyxl" if ext == ".xlsx" else "xlrd")
+        elif ext == ".tsv":
+            return pd.read_csv(file.file, sep="\t")
+        elif ext == ".json":
+            return pd.read_json(file.file)
+        elif ext == ".parquet":
+            return pd.read_parquet(file.file)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {str(e)}")
+    # Unreachable but keeps mypy happy
+    raise HTTPException(status_code=400, detail="Unknown parse error")
 
 # ---------------------------------------------------------------------------
 # In-memory dataset store with LRU eviction.
@@ -54,13 +87,7 @@ def _touch(dataset_id: str) -> None:
 
 @router.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported")
-
-    try:
-        df = pd.read_csv(file.file)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not parse CSV: {str(e)}")
+    df = _parse_upload(file)
 
     if len(df) > settings.MAX_CSV_ROWS:
         raise HTTPException(

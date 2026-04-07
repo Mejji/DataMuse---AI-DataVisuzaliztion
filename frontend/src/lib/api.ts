@@ -99,12 +99,15 @@ export interface Story {
   chapters: StoryChapter[];
 }
 
-export const uploadCSV = async (file: File) => {
+export const uploadFile = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await api.post('/upload', formData);
   return data as { dataset_id: string; profile: DatasetProfile; chunks_embedded: number };
 };
+
+/** @deprecated Use uploadFile instead */
+export const uploadCSV = uploadFile;
 
 export const sendMessage = async (message: string, datasetId: string) => {
   const { data } = await api.post('/chat', { message, dataset_id: datasetId });
