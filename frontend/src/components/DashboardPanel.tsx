@@ -3,19 +3,19 @@ import { X, Pin, Maximize2, Minimize2, Download, FileText, FileSpreadsheet, File
 import { ChartRenderer } from './ChartRenderer';
 import { TableRenderer } from './TableRenderer';
 import { ChartDetailModal } from './ChartDetailModal';
-import type { ChartConfig, TableConfig } from '../lib/api';
+import type { ChartConfig, TableConfig, ChartCustomizeOptions } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
-import { exportChartAsPDF, exportDataAsCSV, exportDataAsExcel } from '../lib/exportUtils';
 
 interface DashboardPanelProps {
   id: string;
   chart?: ChartConfig;
+  chartOptions?: ChartCustomizeOptions;
   table?: TableConfig;
   source: 'suggestion' | 'chat' | 'manual';
   isHighlighted: boolean;
 }
 
-export function DashboardPanel({ id, chart, table, source, isHighlighted }: DashboardPanelProps) {
+export function DashboardPanel({ id, chart, chartOptions, table, source, isHighlighted }: DashboardPanelProps) {
   const { removePanel, pinInsight, highlightPanel } = useDataStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -147,7 +147,7 @@ export function DashboardPanel({ id, chart, table, source, isHighlighted }: Dash
         {table ? (
           <TableRenderer config={table} maxHeight={isExpanded ? 500 : 320} />
         ) : chart ? (
-          <ChartRenderer config={chart} height={isExpanded ? 500 : 320} />
+          <ChartRenderer config={chart} height={isExpanded ? 500 : 320} options={chartOptions} />
         ) : null}
       </div>
 
@@ -156,6 +156,8 @@ export function DashboardPanel({ id, chart, table, source, isHighlighted }: Dash
           chart={chart} 
           isOpen={isDetailOpen} 
           onClose={() => setIsDetailOpen(false)} 
+          panelId={id}
+          initialOptions={chartOptions}
         />
       )}
     </div>

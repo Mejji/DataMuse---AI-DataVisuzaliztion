@@ -463,6 +463,7 @@ def create_chart_data(
               f"count aggregation (original y: {y_columns})")
 
     # --- 3. group / aggregate ---
+    _already_aggregated = False
     if group_by and group_by in result.columns:
         if aggregation == "sum":
             result = result.groupby(group_by)[valid_y].sum().reset_index()
@@ -475,6 +476,7 @@ def create_chart_data(
             result = count_df.reset_index()
             valid_y = ["count"]
         x_column = group_by
+        _already_aggregated = True
     elif x_column and x_column in result.columns:
         is_large = len(result) > LARGE_DATASET_THRESHOLD
         is_numeric_x = pd.api.types.is_numeric_dtype(result[x_column])
@@ -499,19 +501,72 @@ def create_chart_data(
                     result = pd.concat([top, other_df], ignore_index=True)
                 else:
                     result = top
+                _already_aggregated = True
             else:
                 # Few enough categories — just aggregate
                 result = result.groupby(x_column)[valid_y].sum().reset_index()
                 result = result.sort_values(valid_y[0], ascending=False)
+                _already_aggregated = True
         else:
             # Date / numeric x-axis — sort and truncate
-            try:
-                result = result.copy()  # copy only when we need to mutate
-                result[x_column] = pd.to_datetime(result[x_column])
+            if is_numeric_x:
+                # Already numeric — just sort, never coerce to datetime
                 result = result.sort_values(x_column)
-                result[x_column] = result[x_column].dt.strftime('%Y-%m-%d')
-            except (ValueError, TypeError):
-                pass
+            else:
+                try:
+                    result = result.copy()  # copy only when we need to mutate
+                    result[x_column] = pd.to_datetime(result[x_column])
+                    result = result.sort_values(x_column)
+                    result[x_column] = result[x_column].dt.strftime('%Y-%m-%d')
+                except (ValueError, TypeError):
+                    pass
+
+    # --- 3b. Smart aggregation for categorical charts ---
+    CATEGORICAL_CHARTS = {
+        "treemap", "pie", "donut", "funnel", "bar", "groupedBar",
+        "stackedBar", "radar", "radialBar", "waterfall", "composed",
+    }
+    if (
+        not _already_aggregated
+        and chart_type in CATEGORICAL_CHARTS
+        and x_column
+        and x_column in result.columns
+        and not pd.api.types.is_numeric_dtype(result[x_column])
+        and result[x_column].nunique() < len(result)
+    ):
+        agg_func = {
+            "sum": "sum",
+            "mean": "mean",
+            "count": "count",
+            "min": "min",
+            "max": "max",
+            "median": "median",
+        }.get(aggregation, "sum")
+        numeric_y = [c for c in valid_y if pd.api.types.is_numeric_dtype(result[c])]
+        if agg_func == "count":
+            count_series = result.groupby(x_column).size()
+            result = count_series.reset_index()
+            result.columns = [x_column, "count"]
+            valid_y = ["count"]
+        elif numeric_y:
+            result = result.groupby(x_column)[numeric_y].agg(agg_func).reset_index()
+            valid_y = numeric_y
+            if agg_func in ("mean", "median"):
+                for c in numeric_y:
+                    result[c] = result[c].round(2)
+
+        if valid_y and valid_y[0] in result.columns:
+            result = result.sort_values(valid_y[0], ascending=False)
+
+        MAX_SLICES = 8
+        if chart_type in ("pie", "donut", "treemap") and len(result) > MAX_SLICES:
+            top = result.head(MAX_SLICES - 1)
+            rest = result.iloc[MAX_SLICES - 1:]
+            other_row: dict[str, Any] = {x_column: "Other"}
+            for yc in valid_y:
+                if yc in rest.columns:
+                    other_row[yc] = rest[yc].sum()
+            result = pd.concat([top, pd.DataFrame([other_row])], ignore_index=True)
 
     result = result.head(limit)
 
@@ -527,6 +582,7 @@ def create_chart_data(
             name = str(row.get(x_column, ""))
             size = sum(float(row.get(y, 0)) for y in valid_y)
             treemap_data.append({"name": name, "size": round(size, 2)})
+        treemap_data = [d for d in treemap_data if d["size"] > 0]
         chart_config = {
             "chart_type": "treemap",
             "title": title,
@@ -557,11 +613,30 @@ def create_chart_data(
         return chart_config
 
     if chart_type == "radar":
+        scales = {}
+        for y in valid_y:
+            num_series = pd.Series(pd.to_numeric(result[y], errors="coerce"), index=result.index)
+            col_data = num_series.dropna()
+            if len(col_data) > 0:
+                scales[y] = {"min": float(col_data.min()), "max": float(col_data.max())}
+
+        needs_normalization = False
+        if len(scales) >= 2:
+            ranges = [(s["max"] - s["min"]) for s in scales.values() if s["max"] != s["min"]]
+            if ranges and max(ranges) / max(min(ranges), 0.001) > 10:
+                needs_normalization = True
+
         radar_data = []
         for row in result.fillna(0).to_dict("records"):
             entry: dict[str, Any] = {"subject": str(row.get(x_column, ""))}
             for y in valid_y:
-                entry[y] = round(float(row.get(y, 0)), 2)
+                raw_val = float(row.get(y, 0))
+                if needs_normalization and y in scales:
+                    s = scales[y]
+                    range_val = s["max"] - s["min"]
+                    entry[y] = round((raw_val - s["min"]) / range_val * 100, 2) if range_val > 0 else 0
+                else:
+                    entry[y] = round(raw_val, 2)
             radar_data.append(entry)
         radar_series = [
             {"dataKey": col, "color": colors[i % len(colors)], "type": "radar"}
@@ -569,7 +644,7 @@ def create_chart_data(
         ]
         chart_config = {
             "chart_type": "radar",
-            "title": title,
+            "title": title + (" (normalized)" if needs_normalization else ""),
             "data": radar_data,
             "config": {"xAxisKey": "subject", "series": radar_series},
         }
@@ -599,13 +674,20 @@ def create_chart_data(
         numeric_vals = cast(pd.Series, _num_series).dropna()
         if len(numeric_vals) == 0:
             return {"error": f"No numeric values in column '{col}' for histogram"}
-        n_bins = min(20, max(5, int(len(numeric_vals) ** 0.5)))
-        counts, bin_edges = np.histogram(numeric_vals.to_numpy(), bins=n_bins)
+        counts, bin_edges = np.histogram(numeric_vals.to_numpy(), bins="auto")
+        if len(counts) > 30:
+            counts, bin_edges = np.histogram(numeric_vals.to_numpy(), bins=30)
         hist_data = []
         for j in range(len(counts)):
-            low = round(float(bin_edges[j]), 1)
-            high = round(float(bin_edges[j + 1]), 1)
-            hist_data.append({"bin": f"{low}-{high}", "count": int(counts[j])})
+            low = float(bin_edges[j])
+            high = float(bin_edges[j + 1])
+            if abs(high) >= 1000:
+                label = f"{int(low)}-{int(high)}"
+            elif abs(high) >= 1:
+                label = f"{low:.1f}-{high:.1f}"
+            else:
+                label = f"{low:.3f}-{high:.3f}"
+            hist_data.append({"bin": label, "count": int(counts[j])})
         return {
             "chart_type": "histogram",
             "title": f"Distribution of {col}",
@@ -645,7 +727,8 @@ def create_chart_data(
         for row in result.fillna(0).to_dict("records"):
             name = str(row.get(x_column, ""))
             value = round(float(row.get(valid_y[0], 0)), 2)
-            donut_data.append({"name": name, "value": value})
+            if value > 0:
+                donut_data.append({"name": name, "value": value})
         return {
             "chart_type": "donut",
             "title": title,
@@ -654,6 +737,47 @@ def create_chart_data(
                 "xAxisKey": "name",
                 "series": [{"dataKey": "value", "color": colors[0], "type": "donut"}],
             },
+        }
+
+    if chart_type == "pie":
+        pie_data = []
+        for row in result.fillna(0).to_dict("records"):
+            name = str(row.get(x_column, ""))
+            value = round(float(row.get(valid_y[0], 0)), 2)
+            if value > 0:
+                pie_data.append({"name": name, "value": value})
+        return {
+            "chart_type": "pie",
+            "title": title,
+            "data": pie_data,
+            "config": {
+                "xAxisKey": "name",
+                "series": [{"dataKey": "value", "color": colors[0], "type": "pie"}],
+            },
+        }
+
+    if chart_type == "composed":
+        # Re-sort chronologically when x looks like dates
+        if x_column and x_column in result.columns:
+            try:
+                date_order = pd.to_datetime(result[x_column], errors="coerce")
+                if date_order.notna().all():
+                    result = result.iloc[date_order.argsort()]
+            except Exception:
+                pass
+        series = []
+        for i, col in enumerate(valid_y):
+            series_type = "bar" if i == 0 else "line"
+            series.append({
+                "dataKey": col,
+                "color": colors[i % len(colors)],
+                "type": series_type,
+            })
+        return {
+            "chart_type": "composed",
+            "title": title,
+            "data": result.fillna(0).to_dict("records"),
+            "config": {"xAxisKey": x_column, "series": series},
         }
 
     if chart_type == "bubble":
@@ -762,7 +886,8 @@ def create_chart_data(
             # Correlation matrix between numeric columns
             num_cols = [c for c in valid_y if pd.api.types.is_numeric_dtype(result[c])]
             if len(num_cols) >= 2:
-                corr = result[num_cols].corr().round(2)
+                corr_df = pd.DataFrame(result.loc[:, num_cols])
+                corr = corr_df.corr().round(2)
                 heatmap_data = []
                 for row_name in corr.index:
                     for col_name in corr.columns:
@@ -829,6 +954,54 @@ def create_chart_data(
             "config": {
                 "xAxisKey": "date",
                 "series": [{"dataKey": "close", "color": colors[2], "type": "candlestick"}],
+            },
+        }
+
+    if chart_type == "scatter":
+        y_key = valid_y[0]
+        x_series = pd.Series(pd.to_numeric(result[x_column], errors="coerce"), index=result.index)
+        if x_series.isna().all():
+            try:
+                dt_series = pd.Series(pd.to_datetime(result[x_column], errors="coerce"), index=result.index)
+                if dt_series.notna().sum() >= 2:
+                    x_series = pd.Series(dt_series.astype("int64") / 1e9, index=result.index)
+                    result = result.copy()
+                    result["_original_x"] = result[x_column]
+                    result[x_column] = x_series
+            except Exception:
+                pass
+
+        y_series = pd.Series(pd.to_numeric(result[y_key], errors="coerce"), index=result.index)
+        valid_mask = x_series.notna() & y_series.notna()
+        if valid_mask.sum() < 2:
+            return {
+                "error": (
+                    f"Scatter requires numeric x and y. Column '{x_column}' "
+                    "could not be converted to numbers."
+                )
+            }
+
+        scatter_result = result.loc[valid_mask]
+        scatter_data = []
+        for idx, row in scatter_result.iterrows():
+            entry = {
+                x_column: round(float(x_series.loc[idx]), 2),
+                y_key: round(float(y_series.loc[idx]), 2),
+            }
+            for col in result.columns:
+                if col not in entry and col != "_original_x":
+                    val = row[col]
+                    entry[col] = val if pd.notna(val) else None
+            if "_original_x" in result.columns:
+                entry["_original_x"] = str(row["_original_x"])
+            scatter_data.append(entry)
+        return {
+            "chart_type": "scatter",
+            "title": title,
+            "data": scatter_data,
+            "config": {
+                "xAxisKey": x_column,
+                "series": [{"dataKey": y_key, "color": colors[0], "type": "scatter"}],
             },
         }
 

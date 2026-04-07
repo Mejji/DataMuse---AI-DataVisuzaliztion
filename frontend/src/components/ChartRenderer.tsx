@@ -6,7 +6,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   RadialBarChart, RadialBar, Rectangle,
 } from 'recharts';
-import type { ChartConfig } from '../lib/api';
+import type { ChartConfig, ChartCustomizeOptions } from '../lib/api';
 import { useTheme } from '../hooks/useTheme';
 import { useMemo } from 'react';
 
@@ -16,6 +16,7 @@ const DEFAULT_COLORS = ['#f97066', '#f59e0b', '#14b8a6', '#38bdf8', '#8b5cf6', '
 interface ChartRendererProps {
   config: ChartConfig;
   height?: number;
+  options?: ChartCustomizeOptions;
 }
 
 const tooltipStyle = {
@@ -28,7 +29,7 @@ const tooltipStyle = {
 
 const axisStyle = { fontSize: 11, fontFamily: '"Nunito Sans Variable", "Nunito Sans", sans-serif' };
 
-export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
+export function ChartRenderer({ config, height = 400, options }: ChartRendererProps) {
   const { chart_type, title, data, config: chartConfig } = config;
   const { theme } = useTheme();
 
@@ -124,31 +125,53 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
     const data = validData;
     const chartConfig = validConfig;
 
+    const getColor = (index: number, dataKey?: string) => {
+      if (dataKey && options?.seriesColors?.[dataKey]) return options.seriesColors[dataKey];
+      if (options?.colors?.[index]) return options.colors[index];
+      if (dataKey) {
+        const series = chartConfig.series.find(s => s.dataKey === dataKey);
+        if (series?.color) return series.color;
+      }
+      return DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+    };
+
+    const finalHeight = options?.height ?? height;
+    const margins = options?.margins ?? { top: 20, right: 30, left: 20, bottom: 5 };
+    const showGrid = options?.showGrid ?? true;
+    const showLegend = options?.showLegend ?? true;
+    const showTooltip = options?.showTooltip ?? true;
+    const strokeWidth = options?.strokeWidth ?? 2.5;
+    const dotSize = options?.dotSize ?? 3.5;
+    const areaOpacity = options?.areaOpacity ?? 0.15;
+    const barRadius = options?.barRadius ?? 6;
+    const paddingAngle = options?.paddingAngle ?? 2;
+    const radarOpacity = options?.radarOpacity ?? 0.25;
+
     switch (chart_type) {
       case 'bar':
         return (
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => (
-              <Bar key={s.dataKey} dataKey={s.dataKey} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={[6, 6, 0, 0]} />
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={getColor(i, s.dataKey)} radius={[barRadius, barRadius, 0, 0]} />
             ))}
           </BarChart>
         );
 
       case 'line':
         return (
-          <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <LineChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => (
-              <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2 }} />
+              <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={getColor(i, s.dataKey)} strokeWidth={strokeWidth} dot={{ r: dotSize, strokeWidth: 2 }} />
             ))}
           </LineChart>
         );
@@ -162,58 +185,58 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
               nameKey={chartConfig.xAxisKey}
               cx="50%"
               cy="50%"
-              outerRadius={height / 3}
+              outerRadius={options?.outerRadius ? `${options.outerRadius}%` : finalHeight / 3}
               label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
             >
               {data.map((_, i) => (
-                <Cell key={i} fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]} />
+                <Cell key={i} fill={getColor(i)} />
               ))}
             </Pie>
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
           </PieChart>
         );
 
       case 'area':
         return (
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <AreaChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => (
-              <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.15} />
+              <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={getColor(i, s.dataKey)} fill={getColor(i, s.dataKey)} fillOpacity={areaOpacity} />
             ))}
           </AreaChart>
         );
 
       case 'scatter':
         return (
-          <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid stroke={gridStroke} />
+          <ScatterChart margin={margins}>
+            {showGrid && <CartesianGrid stroke={gridStroke} />}
             <XAxis type="number" dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey} tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
-            <Scatter data={data} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[0]} />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
+            <Scatter data={data} fill={getColor(0, chartConfig.series[0]?.dataKey)} />
           </ScatterChart>
         );
 
       case 'composed':
         return (
-          <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <ComposedChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => {
-              const color = s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length];
+              const color = getColor(i, s.dataKey);
               switch (s.type) {
-                case 'line': return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={2.5} />;
-                case 'area': return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} fill={color} fillOpacity={0.15} />;
-                default: return <Bar key={s.dataKey} dataKey={s.dataKey} fill={color} radius={[6, 6, 0, 0]} />;
+                case 'line': return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={strokeWidth} />;
+                case 'area': return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} fill={color} fillOpacity={areaOpacity} />;
+                default: return <Bar key={s.dataKey} dataKey={s.dataKey} fill={color} radius={[barRadius, barRadius, 0, 0]} />;
               }
             })}
           </ComposedChart>
@@ -229,7 +252,7 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
             stroke={gridStroke}
             content={({ x, y, width, height, name, value, index }: any) => {
               if (width < 40 || height < 30) return null;
-              const color = DEFAULT_COLORS[(index ?? 0) % DEFAULT_COLORS.length];
+              const color = getColor(index ?? 0);
               return (
                 <g>
                   <rect x={x} y={y} width={width} height={height} fill={color} stroke={gridStroke} strokeWidth={2} rx={4} />
@@ -252,10 +275,10 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'funnel':
         return (
           <FunnelChart>
-            <Tooltip contentStyle={dynamicTooltipStyle} />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
             <Funnel dataKey="value" data={data} isAnimationActive>
               {data.map((_, i) => (
-                <Cell key={i} fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]} />
+                <Cell key={i} fill={getColor(i)} />
               ))}
               <LabelList position="right" fill={isDark ? '#f8fafc' : '#1e293b'} stroke="none" dataKey="name" fontSize={12} fontFamily='"Nunito Sans Variable", sans-serif' />
             </Funnel>
@@ -265,14 +288,14 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       case 'radar':
         return (
           <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
-            <PolarGrid stroke={gridStroke} />
+            {showGrid && <PolarGrid stroke={gridStroke} />}
             <PolarAngleAxis dataKey={chartConfig.xAxisKey || 'subject'} tick={axisStyle} stroke={axisStroke} />
             <PolarRadiusAxis tick={axisStyle} stroke={axisStroke} />
             {chartConfig.series.map((s, i) => (
-              <Radar key={s.dataKey} name={s.dataKey} dataKey={s.dataKey} stroke={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.25} />
+              <Radar key={s.dataKey} name={s.dataKey} dataKey={s.dataKey} stroke={getColor(i, s.dataKey)} fill={getColor(i, s.dataKey)} fillOpacity={radarOpacity} />
             ))}
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
           </RadarChart>
         );
 
@@ -280,50 +303,54 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
         return (
           <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="90%" barSize={18} data={data}>
             <RadialBar background dataKey={chartConfig.series[0]?.dataKey || 'value'} cornerRadius={8} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend iconSize={10} layout="vertical" verticalAlign="middle" align="right" formatter={(value: string) => <span style={{ color: isDark ? '#f8fafc' : '#1e293b', fontSize: 12, fontFamily: '"Nunito Sans Variable", sans-serif' }}>{value}</span>} />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend iconSize={10} layout="vertical" verticalAlign="middle" align="right" formatter={(value: string) => <span style={{ color: isDark ? '#f8fafc' : '#1e293b', fontSize: 12, fontFamily: '"Nunito Sans Variable", sans-serif' }}>{value}</span>} />}
           </RadialBarChart>
         );
 
-      case 'histogram':
+      case 'histogram': {
+        // If binCount is provided, we might need to re-bin the data, but Recharts BarChart doesn't do binning natively.
+        // The data is already binned by the backend. We can't easily change binCount on the frontend without raw data.
+        // We will just apply the visual options.
         return (
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey || 'bin'} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Bar dataKey={chartConfig.series[0]?.dataKey || 'count'} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[0]} radius={[4, 4, 0, 0]}>
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            <Bar dataKey={chartConfig.series[0]?.dataKey || 'count'} fill={getColor(0, chartConfig.series[0]?.dataKey)} radius={[barRadius, barRadius, 0, 0]}>
               {data.map((_, i) => (
-                <Cell key={i} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} fillOpacity={0.85} />
+                <Cell key={i} fill={getColor(i, chartConfig.series[0]?.dataKey)} fillOpacity={0.85} />
               ))}
             </Bar>
           </BarChart>
         );
+      }
 
       case 'groupedBar':
         return (
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => (
-              <Bar key={s.dataKey} dataKey={s.dataKey} fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={[6, 6, 0, 0]} />
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={getColor(i, s.dataKey)} radius={[barRadius, barRadius, 0, 0]} />
             ))}
           </BarChart>
         );
 
       case 'stackedBar':
         return (
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={data} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
             {chartConfig.series.map((s, i) => (
-              <Bar key={s.dataKey} dataKey={s.dataKey} stackId="a" fill={s.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]} radius={i === chartConfig.series.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />
+              <Bar key={s.dataKey} dataKey={s.dataKey} stackId="a" fill={getColor(i, s.dataKey)} radius={i === chartConfig.series.length - 1 ? [barRadius, barRadius, 0, 0] : [0, 0, 0, 0]} />
             ))}
           </BarChart>
         );
@@ -337,30 +364,30 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
               nameKey={chartConfig.xAxisKey || 'name'}
               cx="50%"
               cy="50%"
-              innerRadius={height / 5}
-              outerRadius={height / 3}
-              paddingAngle={2}
+              innerRadius={options?.innerRadius ? `${options.innerRadius}%` : finalHeight / 5}
+              outerRadius={options?.outerRadius ? `${options.outerRadius}%` : finalHeight / 3}
+              paddingAngle={paddingAngle}
               label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
             >
               {data.map((_, i) => (
-                <Cell key={i} fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]} />
+                <Cell key={i} fill={getColor(i)} />
               ))}
             </Pie>
-            <Tooltip contentStyle={dynamicTooltipStyle} />
-            <Legend />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} />}
+            {showLegend && <Legend />}
           </PieChart>
         );
 
       case 'bubble':
         return (
-          <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <ScatterChart margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis type="number" dataKey={chartConfig.xAxisKey || 'x'} tick={axisStyle} stroke={axisStroke} name={chartConfig.xAxisKey || 'x'} />
             <YAxis type="number" dataKey={chartConfig.series[0]?.dataKey || 'y'} tick={axisStyle} stroke={axisStroke} name={chartConfig.series[0]?.dataKey || 'y'} />
             <ZAxis type="number" dataKey={chartConfig.series[1]?.dataKey || 'z'} range={[40, 400]} name={chartConfig.series[1]?.dataKey || 'z'} />
-            <Tooltip contentStyle={dynamicTooltipStyle} cursor={{ strokeDasharray: '3 3' }} />
-            <Legend />
-            <Scatter data={data} fill={chartConfig.series[0]?.color || DEFAULT_COLORS[0]} fillOpacity={0.6} />
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} cursor={{ strokeDasharray: '3 3' }} />}
+            {showLegend && <Legend />}
+            <Scatter data={data} fill={getColor(0, chartConfig.series[0]?.dataKey)} fillOpacity={0.6} />
           </ScatterChart>
         );
 
@@ -370,20 +397,20 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
           _range: [d.start ?? 0, d.end ?? d.value ?? 0],
         }));
         return (
-          <BarChart data={waterfallData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={waterfallData} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey || 'name'} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any) => {
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any) => {
               if (Array.isArray(value)) return [value[1] - value[0], 'Change'];
               return [value, 'Value'];
-            }} />
-            <Bar dataKey="_range" fill={DEFAULT_COLORS[2]} radius={[4, 4, 0, 0]}
+            }} />}
+            <Bar dataKey="_range" fill={getColor(2)} radius={[barRadius, barRadius, 0, 0]}
               shape={(props: any) => {
                 const { x, y, width, height: h, payload } = props;
                 const val = (payload.end ?? payload.value ?? 0) - (payload.start ?? 0);
-                const fill = payload.isTotal ? DEFAULT_COLORS[4] : val >= 0 ? DEFAULT_COLORS[2] : DEFAULT_COLORS[0];
-                return <Rectangle x={x} y={y} width={width} height={h} fill={fill} radius={[4, 4, 0, 0]} />;
+                const fill = payload.isTotal ? getColor(4) : val >= 0 ? getColor(2) : getColor(0);
+                return <Rectangle x={x} y={y} width={width} height={h} fill={fill} radius={[barRadius, barRadius, 0, 0]} />;
               }}
             />
           </BarChart>
@@ -398,11 +425,11 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
           _whiskerHigh: [d.q3, d.max],
         }));
         return (
-          <BarChart data={boxData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <BarChart data={boxData} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey || 'category'} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any, name: string) => {
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any, name: string) => {
               if (name === 'Whisker' || name === 'Upper') return [null, null];
               const entry = boxData.find(() => true);
               if (!entry) return [value, name];
@@ -422,7 +449,7 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
                   <p>Min: {d.min}</p>
                 </div>
               );
-            }} />
+            }} />}
             <Bar dataKey="_whiskerLow" fill="transparent" stroke={isDark ? '#94a3b8' : '#64748b'} strokeWidth={1}
               shape={(props: any) => {
                 const { x, y, width, height: h } = props;
@@ -435,14 +462,14 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
                 );
               }}
             />
-            <Bar dataKey="_box" fill={DEFAULT_COLORS[3]} fillOpacity={0.7} stroke={DEFAULT_COLORS[3]} strokeWidth={1} radius={[4, 4, 4, 4]}
+            <Bar dataKey="_box" fill={getColor(3)} fillOpacity={0.7} stroke={getColor(3)} strokeWidth={1} radius={[4, 4, 4, 4]}
               shape={(props: any) => {
                 const { x, y, width, height: h, payload } = props;
                 const medianY = h > 0 && payload._box ? y + h * ((payload.q3 - payload.median) / (payload.q3 - payload.q1)) : y + h / 2;
                 return (
                   <g>
-                    <Rectangle x={x} y={y} width={width} height={h} fill={DEFAULT_COLORS[3]} fillOpacity={0.7} stroke={DEFAULT_COLORS[3]} strokeWidth={1} radius={[4, 4, 4, 4]} />
-                    <line x1={x} y1={medianY} x2={x + width} y2={medianY} stroke={DEFAULT_COLORS[0]} strokeWidth={2.5} />
+                    <Rectangle x={x} y={y} width={width} height={h} fill={getColor(3)} fillOpacity={0.7} stroke={getColor(3)} strokeWidth={1} radius={[4, 4, 4, 4]} />
+                    <line x1={x} y1={medianY} x2={x + width} y2={medianY} stroke={getColor(0)} strokeWidth={2.5} />
                   </g>
                 );
               }}
@@ -469,9 +496,9 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
         const values = data.map((d: any) => d.value);
         const minVal = Math.min(...values);
         const maxVal = Math.max(...values);
-        const cellW = Math.max(30, (height * 1.4) / xLabels.length);
-        const cellH = Math.max(24, (height - 60) / yLabels.length);
-        const getColor = (v: number) => {
+        const cellW = Math.max(30, (finalHeight * 1.4) / xLabels.length);
+        const cellH = Math.max(24, (finalHeight - 60) / yLabels.length);
+        const getHeatmapColor = (v: number) => {
           const t = maxVal === minVal ? 0.5 : (v - minVal) / (maxVal - minVal);
           const r = Math.round(249 * t + 56 * (1 - t));
           const g = Math.round(112 * t + 189 * (1 - t));
@@ -480,13 +507,13 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
         };
         const totalW = xLabels.length * cellW + 60;
         return (
-          <svg width="100%" height={height} viewBox={`0 0 ${totalW} ${yLabels.length * cellH + 60}`} style={{ maxWidth: '100%' }}>
+          <svg width="100%" height={finalHeight} viewBox={`0 0 ${totalW} ${yLabels.length * cellH + 60}`} style={{ maxWidth: '100%' }}>
             {data.map((d: any, i: number) => {
               const xi = xLabels.indexOf(d.x);
               const yi = yLabels.indexOf(d.y);
               return (
                 <g key={i}>
-                  <rect x={60 + xi * cellW} y={10 + yi * cellH} width={cellW - 2} height={cellH - 2} fill={getColor(d.value)} rx={3} />
+                  <rect x={60 + xi * cellW} y={10 + yi * cellH} width={cellW - 2} height={cellH - 2} fill={getHeatmapColor(d.value)} rx={3} />
                   {cellW > 35 && cellH > 20 && (
                     <text x={60 + xi * cellW + cellW / 2} y={10 + yi * cellH + cellH / 2} textAnchor="middle" dominantBaseline="central" fontSize={10} fill={((d.value - minVal) / (maxVal - minVal || 1)) > 0.5 ? '#fff' : '#1e293b'} fontFamily='"Nunito Sans Variable", sans-serif'>
                       {typeof d.value === 'number' ? d.value.toFixed(1) : d.value}
@@ -510,14 +537,14 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
       }
 
       case 'candlestick': {
-        const candleWidth = Math.max(6, Math.min(20, (height * 1.2) / data.length));
+        const candleWidth = Math.max(6, Math.min(20, (finalHeight * 1.2) / data.length));
         const candleData = data.map((d: any) => ({ ...d, _wickRange: [d.low, d.high] }));
         return (
-          <ComposedChart data={candleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+          <ComposedChart data={candleData} margin={margins}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey || 'date'} tick={axisStyle} stroke={axisStroke} />
             <YAxis domain={['auto', 'auto']} tick={axisStyle} stroke={axisStroke} />
-            <Tooltip contentStyle={dynamicTooltipStyle}
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle}
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
                 const d = payload[0]?.payload;
@@ -532,14 +559,14 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
                   </div>
                 );
               }}
-            />
+            />}
             <Bar dataKey="_wickRange" barSize={2} fill="transparent"
               shape={(props: any) => {
                 const { x, width, payload } = props;
                 const yScale = props.background ? undefined : props;
                 if (!payload) return null;
                 const bullish = payload.close >= payload.open;
-                const color = bullish ? DEFAULT_COLORS[2] : DEFAULT_COLORS[0];
+                const color = bullish ? getColor(2) : getColor(0);
                 const cx = x + width / 2;
                 const yHigh = props.y;
                 const yLow = props.y + props.height;
@@ -567,10 +594,12 @@ export function ChartRenderer({ config, height = 400 }: ChartRendererProps) {
     }
   };
 
+  const finalHeight = options?.height ?? height;
+
   return (
     <div className="w-full">
       {title && <h3 className="text-sm font-display font-semibold text-foreground mb-3 truncate" title={title}>{title}</h3>}
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height={finalHeight}>
         {renderChart()}
       </ResponsiveContainer>
     </div>

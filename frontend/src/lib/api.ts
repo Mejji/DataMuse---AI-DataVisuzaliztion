@@ -52,6 +52,38 @@ export interface ChartConfig {
   };
 }
 
+export interface ChartCustomizeOptions {
+  // Universal
+  height?: number;
+  colors?: string[];  // palette override
+  showGrid?: boolean;
+  showLegend?: boolean;
+  showTooltip?: boolean;
+  margins?: { top?: number; right?: number; bottom?: number; left?: number };
+
+  // Per-series color overrides (dataKey -> hex color)
+  seriesColors?: Record<string, string>;
+
+  // Line/Area specific
+  strokeWidth?: number;
+  dotSize?: number;
+  areaOpacity?: number;
+
+  // Bar specific
+  barRadius?: number;
+
+  // Pie/Donut specific
+  innerRadius?: number;   // percentage 0-100
+  outerRadius?: number;   // percentage 0-100
+  paddingAngle?: number;
+
+  // Histogram specific
+  binCount?: number;
+
+  // Radar specific
+  radarOpacity?: number;
+}
+
 export interface RecommendedChart {
   title: string;
   description: string;

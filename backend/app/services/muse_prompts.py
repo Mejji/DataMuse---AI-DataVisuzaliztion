@@ -32,18 +32,65 @@ When the user asks to manipulate or change data views:
 Context about the data will be provided in each message. Use it to give specific, data-grounded answers. Never make up numbers."""
 
 
-VISUALIZATION_SUGGESTION_PROMPT = """Based on this dataset profile, suggest 3-5 visualizations that would help a non-technical person understand their data. For each visualization:
+VISUALIZATION_SUGGESTION_PROMPT = """You are a data visualization expert. Analyze this dataset and suggest 3-5 visualizations that reveal the most interesting stories in the data. Choose chart types INTELLIGENTLY based on what the data actually looks like — do NOT default to bar and line charts.
 
+For each visualization:
 1. Give it a friendly title (e.g., "How your sales changed over time" not "Revenue Time Series")
 2. Explain in 1-2 plain sentences WHY this visualization is interesting
 3. Provide the query parameters so the system can generate the chart from real data
 
-Focus on:
-- Trends over time (if there's a date/time column)
-- Comparisons between categories
-- Distributions of key numeric values
-- Relationships between columns (if correlated)
-- Top/bottom performers
+## How to Pick the Right Chart Type
+
+FIRST, analyze the dataset profile to understand what you're working with:
+- How many numeric columns are there? Which ones matter most?
+- Are there date/time columns? (enables time-series charts)
+- Are there categorical columns? How many unique values do they have?
+- Are there multiple numeric columns that could be compared together?
+
+THEN, match chart types to what the data naturally supports:
+
+**Categorical + 1 numeric column:**
+- Few categories (2-6) → `donut` or `pie` for parts-of-whole; `radialBar` for scores/rankings
+- Few categories (2-6) + clear descending order → `funnel` for pipelines or stages
+- Medium categories (5-15) → `bar` for comparison; `treemap` for proportional sizing
+- Many categories (15+) → `bar` with limit, sorted by value
+
+**Categorical + multiple numeric columns:**
+- 2-4 numeric columns → `groupedBar` for side-by-side comparison
+- 2-4 numeric columns showing composition → `stackedBar` for parts within each category
+- 3+ numeric columns as performance dimensions → `radar` for multi-dimensional profiles
+
+**Time/date + numeric columns:**
+- Single metric over time → `line` for trend; `area` to emphasize volume
+- Two related metrics over time → `composed` (bars + line overlay)
+- Financial data with open/high/low/close → `candlestick`
+
+**Numeric + numeric (no categories):**
+- Two numeric columns → `scatter` to show relationship/correlation
+- Three numeric columns → `bubble` (x, y, and size)
+- Many numeric columns → `heatmap` for correlation matrix
+
+**Single numeric column (distribution analysis):**
+- Understanding how values are spread → `histogram`
+- Comparing distributions across groups → `boxPlot` (needs a categorical grouping column)
+
+**Sequential/cumulative data:**
+- Building up to a total with positive and negative steps → `waterfall`
+- Stages with declining counts (conversion, pipeline) → `funnel`
+
+## Diversity Requirement
+
+Your suggestions MUST use at least 3 DIFFERENT chart types. Do NOT suggest multiple bar charts or multiple line charts. Pick the chart type that BEST fits each specific insight — not the safest or most generic option. If the data supports treemap, radar, heatmap, boxPlot, or other specialized types, USE THEM. Generic bar/line should be the minority of suggestions, not the majority.
+
+## Insight Priorities
+
+Look for these patterns in order of how interesting they are:
+1. **Composition** — what makes up the whole? (treemap, donut, stackedBar, pie)
+2. **Distribution** — how are values spread? (histogram, boxPlot)
+3. **Correlation** — do columns move together? (scatter, heatmap, bubble)
+4. **Comparison** — how do categories stack up? (groupedBar, radar, bar)
+5. **Trend** — how do things change over time? (line, area, composed)
+6. **Ranking** — who's on top/bottom? (bar with sort, funnel, radialBar)
 
 IMPORTANT: Use ONLY column names that exist in the dataset profile below. Do NOT invent column names.
 
@@ -77,7 +124,15 @@ Rules:
 - When you want to visualize a categorical column, use aggregation="count" with x_column set to that categorical column and y_columns set to any numeric column — the system will count occurrences automatically
 - For categorical breakdowns, use group_by with a category column and a numeric y_column
 - For time trends, use the date/time column as x_column
-- For pie charts, keep limit to 6 or fewer categories
+- For pie/donut charts, keep limit to 6 or fewer categories
+- For treemap, use a categorical x_column and a single numeric y_column with aggregation
+- For radar, use a categorical x_column and 2+ numeric y_columns (each becomes an axis)
+- For heatmap, use 2+ numeric columns — the system builds a correlation matrix automatically
+- For boxPlot, use a categorical x_column and a single numeric y_column — the system computes quartiles
+- For histogram, use a single numeric column as x_column — the system bins automatically
+- For bubble, use a numeric x_column and 2 numeric y_columns (second becomes bubble size)
+- For funnel, use a categorical x_column and a numeric y_column — data is sorted descending automatically
+- For waterfall, use a categorical x_column and a numeric y_column — shows cumulative contribution
 - aggregation should match the question: "sum" for totals, "mean" for averages, "count" for frequencies
 - Do NOT include a "data" field — the system will query real data automatically"""
 

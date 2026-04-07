@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { DatasetProfile, ChatMessage, VisualizationSuggestion, ChartConfig, TableConfig, Story } from '../lib/api';
+import type { DatasetProfile, ChatMessage, VisualizationSuggestion, ChartConfig, TableConfig, Story, ChartCustomizeOptions } from '../lib/api';
 import { sendMessage, applyMutation as applyMutationApi, undoMutation as undoMutationApi, downloadCSV } from '../lib/api';
 
 // A panel on the interactive dashboard
 interface DashboardPanel {
   id: string;
   chart?: ChartConfig;
+  chartOptions?: ChartCustomizeOptions;
   table?: TableConfig;
   source: 'suggestion' | 'chat' | 'manual';  // Where it came from
   timestamp: string;
@@ -54,6 +55,7 @@ interface DataState {
   removePanel: (id: string) => void;
   clearPanels: () => void;
   highlightPanel: (id: string | null) => void;
+  updatePanelOptions: (panelId: string, options: ChartCustomizeOptions) => void;
 
   setSuggestions: (s: VisualizationSuggestion[]) => void;
   pinInsight: (insight: string) => void;
@@ -119,6 +121,13 @@ export const useDataStore = create<DataState>((set) => ({
   })),
   clearPanels: () => set({ dashboardPanels: [], highlightedPanelId: null }),
   highlightPanel: (id) => set({ highlightedPanelId: id }),
+  updatePanelOptions: (panelId, options) => set((s) => ({
+    dashboardPanels: s.dashboardPanels.map((p) => 
+      p.id === panelId 
+        ? { ...p, chartOptions: { ...p.chartOptions, ...options } } 
+        : p
+    )
+  })),
 
   setSuggestions: (suggestions) => set({ suggestions }),
   pinInsight: (insight) => set((s) => ({ pinnedInsights: [...s.pinnedInsights, insight] })),
