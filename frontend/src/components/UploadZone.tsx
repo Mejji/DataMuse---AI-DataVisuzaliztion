@@ -26,8 +26,10 @@ function generateSuggestedPrompts(profile: DatasetProfile): string[] {
   }
   // Always include a general exploration prompt
   prompts.push("Give me a summary of this dataset");
+  // Always include recommended visualizations
+  prompts.push("Recommended Visualizations");
   
-  return prompts.slice(0, 5); // Max 5 prompts
+  return prompts.slice(0, 6); // Max 6 prompts
 }
 
 const FEATURES = [

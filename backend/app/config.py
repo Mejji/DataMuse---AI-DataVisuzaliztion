@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -8,20 +9,41 @@ load_dotenv(_backend_dir / ".env")
 load_dotenv(_backend_dir.parent / ".env")
 
 
-# Groq model pool — each model has independent rate limits on the free tier.
-# Round-robin across them gives ~18K+ requests/day combined.
-GROQ_MODEL_POOL: list[str] = [
-    "llama-3.3-70b-versatile",              # 1K RPD, 100K TPD — best quality
-    "moonshotai/kimi-k2-instruct",           # 1K RPD, 300K TPD — strong reasoning
-    "qwen/qwen3-32b",                        # 1K RPD, 500K TPD — fast, capable
-    "meta-llama/llama-4-scout-17b-16e-instruct",  # 1K RPD, 500K TPD — good balance
-    "llama-3.1-8b-instant",                  # 14.4K RPD, 500K TPD — lightweight fallback
+# ---------------------------------------------------------------------------
+# Provider-aware model pool
+#
+# Each entry pairs a provider tag with a model name.  The load balancer
+# dispatches to the correct client (Groq, Cerebras, or Gemini) based on
+# the provider field.  Failover order = list order.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class ModelEntry:
+    provider: str   # "groq" | "cerebras" | "gemini"
+    model: str      # model name string for that provider's API
+
+
+# Order: Groq primary → Cerebras secondary → Gemini last-resort
+MODEL_POOL: list[ModelEntry] = [
+    # --- Groq (5 models, ~18K RPD combined) ---
+    ModelEntry("groq", "llama-3.3-70b-versatile"),
+    ModelEntry("groq", "moonshotai/kimi-k2-instruct"),
+    ModelEntry("groq", "qwen/qwen3-32b"),
+    ModelEntry("groq", "meta-llama/llama-4-scout-17b-16e-instruct"),
+    ModelEntry("groq", "llama-3.1-8b-instant"),
+    # --- Cerebras (2 models, ~29K RPD combined) ---
+    ModelEntry("cerebras", "llama3.1-8b"),
+    ModelEntry("cerebras", "qwen-3-235b-a22b-instruct-2507"),
+    # --- Gemini (last resort, 250 RPD but massive context) ---
+    ModelEntry("gemini", "gemini-2.5-flash"),
 ]
 
 
 class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL_POOL: list[str] = GROQ_MODEL_POOL
+    CEREBRAS_API_KEY: str = os.getenv("CEREBRAS_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    MODEL_POOL: list[ModelEntry] = MODEL_POOL
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"

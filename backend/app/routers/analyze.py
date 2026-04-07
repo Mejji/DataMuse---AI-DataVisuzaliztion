@@ -2,7 +2,7 @@ import traceback
 from fastapi import APIRouter, HTTPException
 from app.services.llm_service import suggest_visualizations
 from app.services.data_tools import create_chart_data
-from app.routers.upload import datasets
+from app.routers.upload import datasets, _touch
 
 router = APIRouter(prefix="/api", tags=["analyze"])
 
@@ -12,8 +12,9 @@ async def analyze_dataset(dataset_id: str):
     if dataset_id not in datasets:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+    _touch(dataset_id)
     dataset = datasets[dataset_id]
-    profile = dataset["profile"].model_dump()
+    profile = dataset.get("profile_dict") or dataset["profile"].model_dump()
     sample_rows = profile["sample_rows"]
     df = dataset["df"]
 

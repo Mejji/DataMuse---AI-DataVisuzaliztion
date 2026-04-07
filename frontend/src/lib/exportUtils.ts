@@ -222,16 +222,9 @@ export const exportDataAsCSV = (data: any[], filename: string) => {
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const csv = XLSX.utils.sheet_to_csv(worksheet);
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename.replace(/\s+/g, '_').toLowerCase()}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const BOM = '\uFEFF'; // UTF-8 BOM for proper encoding in Excel
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+  saveAs(blob, `${filename.replace(/\s+/g, '_').toLowerCase()}.csv`);
 };
 
 export const exportDataAsExcel = (data: any[], filename: string) => {

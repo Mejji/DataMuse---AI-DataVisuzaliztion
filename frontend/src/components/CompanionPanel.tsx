@@ -33,7 +33,8 @@ export function CompanionPanel() {
       const response = await sendMessage(userMessage, datasetId);
       addMessage(response);
 
-      if (response.chart_config) {
+      // Auto-add chart to dashboard only for single charts, not recommendations
+      if (response.chart_config && !response.recommended_charts?.length) {
         addPanel(response.chart_config, 'chat');
       }
     } catch {
@@ -63,7 +64,8 @@ export function CompanionPanel() {
     try {
       const response = await sendMessage(promptText, datasetId);
       addMessage(response);
-      if (response.chart_config) {
+      // Auto-add chart to dashboard only for single charts, not recommendations
+      if (response.chart_config && !response.recommended_charts?.length) {
         addPanel(response.chart_config, 'chat');
       }
     } catch {

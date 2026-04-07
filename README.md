@@ -11,7 +11,7 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 - **Interactive Dashboard** — accumulating multi-panel dashboard that builds as you explore
 - **Story Builder** — AI-drafted data stories with chapters, narratives, and embedded visualizations
 - **RAG-powered Context** — Qdrant vector DB indexes your data for accurate, grounded answers
-- **Smart Load Balancer** — round-robin rotation across 5 Groq free-tier models with automatic 429 failover (~18K+ requests/day)
+- **Multi-Provider Load Balancer** — round-robin rotation across 8 models from 3 providers (Groq, Cerebras, Gemini) with automatic failover (~47K+ requests/day)
 
 ## Tech Stack
 
@@ -19,7 +19,7 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Recharts, Zustand |
 | Backend | Python, FastAPI, Pandas, SentenceTransformers |
-| LLM | Groq (Llama 3.3 70B, Kimi K2, Qwen3 32B, Llama 4 Scout, Llama 3.1 8B) — load-balanced |
+| LLM | Groq, Cerebras, Google Gemini — 8 models, multi-provider load-balanced |
 | Vector DB | Qdrant (Docker) |
 
 ## Quick Start
@@ -53,7 +53,7 @@ This starts Qdrant (Docker), the backend API server, and the frontend dev server
 git clone <repo-url>
 cd AI-Visualization
 cp .env.example backend/.env
-# Edit backend/.env and add your Groq API key
+# Edit backend/.env and add your API keys (Groq, Cerebras, Gemini)
 ```
 
 #### 2. Install backend dependencies
@@ -89,22 +89,31 @@ Open **http://localhost:5173** and upload a CSV to get started.
 
 ## LLM Load Balancer
 
-DataMuse uses a **smart load balancer** that rotates across multiple Groq free-tier models. Each model has independent rate limits, so combining them gives you a much larger daily request pool:
+DataMuse uses a **multi-provider load balancer** that rotates across 8 models from 3 providers. Each model has independent rate limits, and cascading across providers gives you massive daily throughput:
 
-| Model | Requests/Day | Tokens/Day |
-|-------|-------------|-----------|
-| `llama-3.3-70b-versatile` | 1,000 | 100,000 |
-| `moonshotai/kimi-k2-instruct` | 1,000 | 300,000 |
-| `qwen/qwen3-32b` | 1,000 | 500,000 |
-| `meta-llama/llama-4-scout-17b-16e-instruct` | 1,000 | 500,000 |
-| `llama-3.1-8b-instant` | 14,400 | 500,000 |
-| **Combined** | **~18,400** | **~1,900,000** |
+### Provider Chain: Groq → Cerebras → Gemini
+
+| Provider | Model | Requests/Day | Tokens/Day |
+|----------|-------|-------------|-----------|
+| Groq | `llama-3.3-70b-versatile` | 1,000 | 100,000 |
+| Groq | `moonshotai/kimi-k2-instruct` | 1,000 | 300,000 |
+| Groq | `qwen/qwen3-32b` | 1,000 | 500,000 |
+| Groq | `meta-llama/llama-4-scout-17b-16e-instruct` | 1,000 | 500,000 |
+| Groq | `llama-3.1-8b-instant` | 14,400 | 500,000 |
+| Cerebras | `llama3.1-8b` | 14,400 | 1,000,000 |
+| Cerebras | `qwen-3-235b-a22b-instruct-2507` | 14,400 | 1,000,000 |
+| Gemini | `gemini-2.5-flash` | 250 | 250,000 TPM |
+| **Combined** | **8 models** | **~47,450** | **~4,150,000** |
 
 **How it works:**
-- Round-robin rotation: each request goes to the next model in the pool
-- On a 429 (rate limit), that model is marked exhausted and the next one is tried
-- Thread-safe: works correctly under concurrent requests
-- Resets on server restart
+- **Round-robin rotation**: each request goes to the next model in the pool
+- **Multi-provider dispatch**: routes to the correct provider client (Groq, Cerebras, or Gemini) automatically
+- **Model pinning**: once a model is chosen for a conversation, it sticks — so context isn't lost mid-chat
+- **429 failover**: on rate limit, that model is marked exhausted with a 60-second TTL cooldown, then the next model is tried
+- **TPM handling**: tokens-per-minute errors trigger context trimming and retry on the same model
+- **`tool_use_failed` recovery**: failover to the next model while preserving tool calling
+- **`<think>` stripping**: chain-of-thought tags from reasoning models are automatically cleaned
+- **Thread-safe**: works correctly under concurrent requests
 
 ## Project Structure
 
@@ -124,9 +133,9 @@ AI-Visualization/
 │   │   │   ├── analyze.py       # AI visualization suggestions
 │   │   │   └── story.py         # Story generation
 │   │   └── services/
-│   │       ├── llm_service.py   # Load-balanced Groq client + function calling
+│   │       ├── llm_service.py   # Multi-provider load balancer + function calling
 │   │       ├── muse_prompts.py  # System prompt + analytical knowledge
-│   │       ├── data_tools.py    # query_data, create_chart, compute_stats, detect_patterns
+│   │       ├── data_tools.py    # query_data, create_chart, create_table, compute_stats, detect_patterns
 │   │       ├── csv_profiler.py  # DataFrame profiling
 │   │       ├── embeddings.py    # SentenceTransformer + chunking
 │   │       └── qdrant_service.py # Qdrant vector operations
@@ -171,6 +180,8 @@ AI-Visualization/
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GROQ_API_KEY` | Groq API key ([console.groq.com](https://console.groq.com)) | — |
+| `CEREBRAS_API_KEY` | Cerebras API key ([cloud.cerebras.ai](https://cloud.cerebras.ai)) | — |
+| `GEMINI_API_KEY` | Google Gemini API key ([aistudio.google.com](https://aistudio.google.com)) | — |
 | `QDRANT_HOST` | Qdrant hostname | `localhost` |
 | `QDRANT_PORT` | Qdrant port | `6333` |
 

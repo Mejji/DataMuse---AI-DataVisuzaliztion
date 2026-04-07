@@ -1,11 +1,11 @@
 import { DashboardPanel } from './DashboardPanel';
 import { SuggestionCard } from './SuggestionCard';
 import { useDataStore } from '../stores/useDataStore';
-import { LayoutGrid, Trash2, Sparkles, Loader2, Download } from 'lucide-react';
+import { LayoutGrid, Trash2, Sparkles, Loader2, Download, Lightbulb, Undo2, FileDown } from 'lucide-react';
 import { exportDashboardAsPDF } from '../lib/exportUtils';
 
 export function InteractiveDashboard() {
-  const { dashboardPanels, highlightedPanelId, suggestions, profile, clearPanels, isAnalyzing } = useDataStore();
+  const { dashboardPanels, highlightedPanelId, suggestions, profile, clearPanels, isAnalyzing, datasetId, sendChatMessage, isChatLoading, canUndo, undoMutation, downloadData } = useDataStore();
 
   return (
     <main className="flex-1 p-4 md:p-6 overflow-auto bg-mesh-warm">
@@ -36,6 +36,24 @@ export function InteractiveDashboard() {
                 Export PDF
               </button>
               <button
+                onClick={() => downloadData()}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5
+                           px-3 py-1.5 rounded-lg hover:bg-accent transition-all duration-200"
+              >
+                <FileDown className="w-3 h-3" />
+                Download CSV
+              </button>
+              {canUndo && (
+                <button
+                  onClick={() => undoMutation()}
+                  className="text-xs text-dm-amber hover:text-dm-amber/80 flex items-center gap-1.5
+                             px-3 py-1.5 rounded-lg hover:bg-dm-amber/5 transition-all duration-200"
+                >
+                  <Undo2 className="w-3 h-3" />
+                  Undo
+                </button>
+              )}
+              <button
                 onClick={clearPanels}
                 className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1.5
                            px-3 py-1.5 rounded-lg hover:bg-destructive/5 transition-all duration-200"
@@ -56,6 +74,7 @@ export function InteractiveDashboard() {
               key={panel.id}
               id={panel.id}
               chart={panel.chart}
+              table={panel.table}
               source={panel.source}
               isHighlighted={panel.id === highlightedPanelId}
             />
@@ -78,6 +97,36 @@ export function InteractiveDashboard() {
               <SuggestionCard key={i} suggestion={s} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Persistent "Recommended Visualizations" card */}
+      {datasetId && (
+        <div className="mt-6 animate-fade-up" style={{ animationDelay: '300ms' }}>
+          <button
+            onClick={() => sendChatMessage("Show me recommended visualizations for this dataset")}
+            disabled={isChatLoading}
+            className="group w-full max-w-sm mx-auto flex items-center gap-4 bg-gradient-to-r from-dm-violet/5 via-dm-coral/5 to-dm-amber/5
+                       hover:from-dm-violet/10 hover:via-dm-coral/10 hover:to-dm-amber/10
+                       border border-dm-coral/20 hover:border-dm-coral/40 rounded-2xl px-5 py-4
+                       transition-all duration-300 hover:shadow-lg hover:shadow-dm-coral/5 hover:-translate-y-0.5
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+          >
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-dm-coral via-dm-amber to-dm-teal
+                            flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <h4 className="font-display font-bold text-sm text-foreground group-hover:text-dm-coral transition-colors duration-200">
+                Recommended Visualizations
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Ask Muse for chart suggestions tailored to your data
+              </p>
+            </div>
+            <Sparkles className="w-4 h-4 text-dm-amber/40 group-hover:text-dm-amber ml-auto flex-shrink-0
+                                 transition-colors duration-200" />
+          </button>
         </div>
       )}
 

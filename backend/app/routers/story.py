@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.llm_service import generate_story_draft
 from app.services.data_tools import create_chart_data
-from app.routers.upload import datasets
+from app.routers.upload import datasets, _touch
 from app.routers.chat import conversations
 
 router = APIRouter(prefix="/api", tags=["story"])
@@ -19,8 +19,9 @@ async def generate_story(request: StoryRequest):
     if request.dataset_id not in datasets:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+    _touch(request.dataset_id)
     dataset = datasets[request.dataset_id]
-    profile = dataset["profile"].model_dump()
+    profile = dataset.get("profile_dict") or dataset["profile"].model_dump()
     df = dataset["df"]
 
     # Combine pinned insights with conversation highlights
