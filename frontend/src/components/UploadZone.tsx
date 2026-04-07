@@ -133,7 +133,7 @@ export function UploadZone() {
         <div className="absolute -bottom-24 right-1/4 w-72 h-72 bg-dm-amber/5 rounded-full blur-3xl animate-blob" style={{ animationDelay: '4s' }} />
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
         {/* Hero section */}
         <div className="text-center mb-12 stagger-children">
           {/* Muse avatar */}
@@ -154,7 +154,7 @@ export function UploadZone() {
         <div className="mb-16 animate-fade-up" style={{ animationDelay: '200ms' }}>
           <div
             className={`
-              relative w-full border-2 border-dashed rounded-3xl p-10
+              relative w-full border-2 border-dashed rounded-3xl p-6 sm:p-8 md:p-10
               flex flex-col items-center gap-5 transition-all duration-300 cursor-pointer
               group overflow-hidden
               ${isDragging
@@ -211,7 +211,7 @@ export function UploadZone() {
                       or <span className="text-dm-coral font-medium underline underline-offset-2 decoration-dm-coral/30 group-hover:decoration-dm-coral/60 transition-colors">browse your files</span>
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground/60">
                     <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
                     CSV, Excel, TSV, JSON, Parquet
                     <span className="w-1 h-1 rounded-full bg-dm-teal/40" />
@@ -231,7 +231,7 @@ export function UploadZone() {
         </div>
 
         {/* Feature cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 stagger-children">
           {FEATURES.map((feature) => (
             <div
               key={feature.title}

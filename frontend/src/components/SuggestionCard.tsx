@@ -13,7 +13,7 @@ export function SuggestionCard({ suggestion }: SuggestionCardProps) {
   return (
     <button
       onClick={() => addPanel(suggestion.chart_config, 'suggestion')}
-      className="group relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-5 text-left
+      className="group relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-3 sm:p-4 md:p-5 text-left
                  hover:bg-card hover:border-dm-coral/30 hover:shadow-lg hover:shadow-dm-coral/5
                  hover:-translate-y-1 transition-all duration-300 w-full overflow-hidden"
     >
@@ -32,7 +32,7 @@ export function SuggestionCard({ suggestion }: SuggestionCardProps) {
       </div>
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">{suggestion.description}</p>
       <div className="pointer-events-none rounded-xl overflow-hidden bg-muted/30 p-2">
-        <ChartRenderer config={suggestion.chart_config} height={140} />
+        <ChartRenderer config={suggestion.chart_config} height={120} />
       </div>
     </button>
   );

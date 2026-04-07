@@ -20,10 +20,10 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
   };
 
   return (
-    <div className="bg-card border border-border/60 rounded-2xl p-7 group shadow-sm
+    <div className="bg-card border border-border/60 rounded-2xl p-4 sm:p-5 md:p-7 group shadow-sm
                     hover:shadow-md hover:border-border transition-all duration-300">
-      <div className="flex items-start gap-4">
-        <div className="mt-1 cursor-grab text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
+      <div className="flex items-start gap-2 sm:gap-4">
+        <div className="hidden sm:block mt-1 cursor-grab text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
           <GripVertical className="w-5 h-5" />
         </div>
 
@@ -32,7 +32,7 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
             <span className="text-[10px] font-display font-bold uppercase tracking-widest text-dm-coral bg-dm-coral-light dark:bg-dm-coral/10 px-3 py-1 rounded-full">
               Chapter {chapter.order}
             </span>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
               {isEditing ? (
                 <button onClick={handleSave} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors">
                   <Check className="w-4 h-4" />
@@ -67,14 +67,14 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
             </>
           ) : (
             <>
-              <h3 className="text-xl font-display font-bold text-foreground mb-3">{chapter.title}</h3>
+              <h3 className="text-lg sm:text-xl font-display font-bold text-foreground mb-3">{chapter.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{chapter.narrative}</p>
             </>
           )}
 
           {chapter.chart_config && (
             <div className="mt-5 border-t border-border/40 pt-5">
-              <ChartRenderer config={chapter.chart_config} height={300} />
+              <ChartRenderer config={chapter.chart_config} height={240} />
             </div>
           )}
         </div>

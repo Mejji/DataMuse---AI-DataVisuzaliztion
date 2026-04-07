@@ -66,7 +66,7 @@ export function DashboardPanel({ id, chart, chartOptions, table, source, isHighl
       id={id}
       ref={panelRef}
       className={`
-        bg-card border rounded-2xl p-6 transition-all duration-500 group relative
+        bg-card border rounded-2xl p-3 sm:p-4 md:p-6 transition-all duration-500 group relative
         hover:-translate-y-0.5
         ${isHighlighted
           ? 'border-dm-coral/40 shadow-xl shadow-dm-coral/10 ring-2 ring-dm-coral/20'
@@ -85,7 +85,7 @@ export function DashboardPanel({ id, chart, chartOptions, table, source, isHighl
             </span>
           )}
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
           {chart && (
             <div className="relative" ref={exportMenuRef}>
               <button
@@ -145,9 +145,9 @@ export function DashboardPanel({ id, chart, chartOptions, table, source, isHighl
         onClick={() => chart && setIsDetailOpen(true)}
       >
         {table ? (
-          <TableRenderer config={table} maxHeight={isExpanded ? 500 : 320} />
+          <TableRenderer config={table} maxHeight={isExpanded ? 500 : 240} />
         ) : chart ? (
-          <ChartRenderer config={chart} height={isExpanded ? 500 : 320} options={chartOptions} />
+          <ChartRenderer config={chart} height={isExpanded ? 500 : 240} options={chartOptions} />
         ) : null}
       </div>
 

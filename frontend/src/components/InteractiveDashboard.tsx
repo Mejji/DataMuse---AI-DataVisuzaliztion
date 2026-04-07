@@ -17,12 +17,12 @@ export function InteractiveDashboard() {
               <div className="w-2 h-2 rounded-full bg-dm-teal animate-pulse-soft" />
               {profile.filename}
             </div>
-            <span className="hidden sm:inline-block text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">
+            <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">
               {profile.row_count.toLocaleString()} rows · {profile.column_count} columns
             </span>
           </div>
           {dashboardPanels.length > 0 && (
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground flex items-center gap-1.5 bg-card px-3 py-1.5 rounded-lg border border-border/40">
                 <LayoutGrid className="w-3.5 h-3.5 text-dm-coral/60" />
                 {dashboardPanels.length} panel{dashboardPanels.length !== 1 ? 's' : ''}
@@ -33,7 +33,7 @@ export function InteractiveDashboard() {
                            px-3 py-1.5 rounded-lg hover:bg-accent transition-all duration-200"
               >
                 <Download className="w-3 h-3" />
-                Export PDF
+                <span className="hidden sm:inline">Export PDF</span>
               </button>
               <button
                 onClick={() => downloadData()}
@@ -41,7 +41,7 @@ export function InteractiveDashboard() {
                            px-3 py-1.5 rounded-lg hover:bg-accent transition-all duration-200"
               >
                 <FileDown className="w-3 h-3" />
-                Download CSV
+                <span className="hidden sm:inline">Download CSV</span>
               </button>
               {canUndo && (
                 <button
@@ -50,7 +50,7 @@ export function InteractiveDashboard() {
                              px-3 py-1.5 rounded-lg hover:bg-dm-amber/5 transition-all duration-200"
                 >
                   <Undo2 className="w-3 h-3" />
-                  Undo
+                  <span className="hidden sm:inline">Undo</span>
                 </button>
               )}
               <button
@@ -59,7 +59,7 @@ export function InteractiveDashboard() {
                            px-3 py-1.5 rounded-lg hover:bg-destructive/5 transition-all duration-200"
               >
                 <Trash2 className="w-3 h-3" />
-                Clear all
+                <span className="hidden sm:inline">Clear all</span>
               </button>
             </div>
           )}

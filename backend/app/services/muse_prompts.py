@@ -94,6 +94,19 @@ Look for these patterns in order of how interesting they are:
 
 IMPORTANT: Use ONLY column names that exist in the dataset profile below. Do NOT invent column names.
 
+## Column Classification (CRITICAL — read before choosing columns)
+
+Each column in the profile has a `column_class` field. You MUST respect these classifications:
+
+- **"numeric"** — Safe for y_columns, x_column (scatter/histogram), aggregation targets
+- **"categorical"** — Safe for x_column, group_by. Use aggregation="count" to visualize
+- **"datetime"** — Use as x_column for time-series charts (line, area, composed)
+- **"json_nested"** — ⛔ NEVER USE. Contains JSON arrays/objects (e.g. [{{"id": 1, "name": "Action"}}]). Unusable for any axis or grouping. SKIP ENTIRELY.
+- **"long_text"** — ⛔ NEVER USE. Contains long descriptions, URLs, or free text. Unusable for any axis or grouping. SKIP ENTIRELY.
+- **"id"** — ⛔ NEVER USE. Contains unique identifiers with no analytical value. SKIP ENTIRELY.
+
+If a column has column_class "json_nested", "long_text", or "id", do NOT use it as x_column, y_columns, or group_by — these produce unreadable garbage charts. Pretend these columns don't exist.
+
 Dataset profile:
 {profile}
 
@@ -153,6 +166,19 @@ The story should flow like a magazine article:
 Write the narrative as if you're a friendly journalist explaining findings to a general audience. Use "your data" and "your [business/project]" language.
 
 IMPORTANT: Use ONLY column names that exist in the dataset profile below. Do NOT invent column names.
+
+## Column Classification (CRITICAL — read before choosing columns)
+
+Each column in the profile has a `column_class` field. You MUST respect these classifications:
+
+- **"numeric"** — Safe for y_columns, aggregation targets
+- **"categorical"** — Safe for x_column, group_by
+- **"datetime"** — Use as x_column for time-series
+- **"json_nested"** — ⛔ NEVER USE. Contains JSON arrays/objects. SKIP ENTIRELY.
+- **"long_text"** — ⛔ NEVER USE. Contains long text. SKIP ENTIRELY.
+- **"id"** — ⛔ NEVER USE. Contains unique identifiers. SKIP ENTIRELY.
+
+Do NOT use columns with column_class "json_nested", "long_text", or "id" as x_column, y_columns, or group_by.
 
 Dataset profile:
 {profile}

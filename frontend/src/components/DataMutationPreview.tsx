@@ -61,7 +61,7 @@ export const DataMutationPreview: React.FC<DataMutationPreviewProps> = ({ previe
       </div>
 
       <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground text-xs mb-1">Rows Affected</span>
             <span className="font-medium text-foreground">{preview.rows_affected.toLocaleString()}</span>
@@ -124,7 +124,7 @@ export const DataMutationPreview: React.FC<DataMutationPreviewProps> = ({ previe
         )}
 
         {status === 'pending' && (
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-2">
             <button
               onClick={handleApply}
               className="flex-1 bg-gradient-to-r from-dm-teal to-dm-violet text-white font-medium py-2 px-4 rounded-xl hover:opacity-90 transition-opacity shadow-sm"

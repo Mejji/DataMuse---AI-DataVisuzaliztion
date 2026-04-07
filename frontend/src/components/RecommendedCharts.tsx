@@ -28,7 +28,7 @@ export function RecommendedCharts({ charts }: RecommendedChartsProps) {
           return (
             <div
               key={i}
-              className="group bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4
+              className="group bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-3 sm:p-4
                          hover:border-dm-coral/30 hover:shadow-md transition-all duration-200 overflow-hidden"
             >
               <div className="flex items-start justify-between gap-2 mb-2">
@@ -66,7 +66,7 @@ export function RecommendedCharts({ charts }: RecommendedChartsProps) {
                 </button>
               </div>
               <div className="pointer-events-none rounded-xl overflow-hidden bg-muted/30 p-1.5">
-                <ChartRenderer config={chart.chart_config} height={120} />
+                <ChartRenderer config={chart.chart_config} height={100} />
               </div>
             </div>
           );

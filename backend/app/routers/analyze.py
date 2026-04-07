@@ -6,6 +6,9 @@ from app.routers.upload import datasets, _touch
 
 router = APIRouter(prefix="/api", tags=["analyze"])
 
+# Column classes that must NEVER be used as chart axes or grouping
+_UNUSABLE_CLASSES = {"json_nested", "long_text", "id"}
+
 
 @router.get("/analyze/{dataset_id}")
 async def analyze_dataset(dataset_id: str):
@@ -17,6 +20,12 @@ async def analyze_dataset(dataset_id: str):
     profile = dataset.get("profile_dict") or dataset["profile"].model_dump()
     sample_rows = profile["sample_rows"]
     df = dataset["df"]
+
+    # Build a set of column names that are unusable for visualization
+    unusable_columns: set[str] = set()
+    for col_profile in profile.get("columns", []):
+        if col_profile.get("column_class") in _UNUSABLE_CLASSES:
+            unusable_columns.add(col_profile.get("name", ""))
 
     try:
         raw_suggestions = suggest_visualizations(profile, sample_rows)
@@ -50,6 +59,19 @@ async def analyze_dataset(dataset_id: str):
 
             if not x_column or not y_columns:
                 print(f"[analyze] Skipping suggestion '{spec.get('title')}': missing x_column or y_columns")
+                continue
+
+            # Safety net: reject suggestions that use unusable columns
+            bad_cols = []
+            if x_column in unusable_columns:
+                bad_cols.append(f"x_column='{x_column}'")
+            for yc in y_columns:
+                if yc in unusable_columns:
+                    bad_cols.append(f"y_column='{yc}'")
+            if isinstance(group_by, str) and group_by in unusable_columns:
+                bad_cols.append(f"group_by='{group_by}'")
+            if bad_cols:
+                print(f"[analyze] Skipping suggestion '{spec.get('title')}': uses unusable columns ({', '.join(bad_cols)})")
                 continue
 
             # Execute the query against the real DataFrame

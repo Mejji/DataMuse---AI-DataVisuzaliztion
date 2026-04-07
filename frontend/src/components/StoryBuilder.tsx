@@ -87,13 +87,13 @@ export function StoryBuilder() {
       </div>
 
       {/* Story content */}
-      <div id="story-container" className="max-w-3xl mx-auto px-4 md:px-6 py-10">
+      <div id="story-container" className="max-w-3xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-10">
         {!story && !isGenerating && (
           <div className="text-center py-20 animate-fade-up">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-dm-violet/10 to-dm-sky/10 flex items-center justify-center mx-auto mb-6">
               <Sparkles className="w-10 h-10 text-dm-violet/40" />
             </div>
-            <h2 className="text-2xl font-display font-bold text-foreground mb-3">
+            <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-3">
               Ready to tell your data's story?
             </h2>
             <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
@@ -108,7 +108,7 @@ export function StoryBuilder() {
             <div>
               <button
                 onClick={handleGenerate}
-                className="px-8 py-3.5 bg-gradient-to-r from-dm-coral to-dm-amber text-white rounded-2xl
+                className="px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-dm-coral to-dm-amber text-white rounded-2xl
                            hover:shadow-lg hover:shadow-dm-coral/20 font-display font-bold
                            transition-all duration-200 hover:scale-105"
               >

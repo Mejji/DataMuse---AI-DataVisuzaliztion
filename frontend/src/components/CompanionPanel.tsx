@@ -80,7 +80,7 @@ export function CompanionPanel() {
   };
 
   return (
-    <aside className="w-full md:w-[350px] lg:w-[400px] h-full border-l border-border/60 bg-card/80 backdrop-blur-md flex flex-col">
+    <aside className="w-full md:w-[280px] lg:w-[350px] xl:w-[400px] h-full border-l border-border/60 bg-card/80 backdrop-blur-md flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ export function CompanionPanel() {
               <button
                 key={i}
                 onClick={() => handlePromptClick(prompt)}
-                className="flex-shrink-0 max-w-[200px] truncate px-3 py-1.5 rounded-full text-xs
+                className="flex-shrink-0 max-w-[180px] sm:max-w-[200px] truncate px-3 py-1.5 rounded-full text-xs
                            bg-dm-coral-light/50 dark:bg-dm-coral/10 border border-dm-coral/20 text-foreground
                            hover:bg-dm-coral-light dark:hover:bg-dm-coral/20 hover:border-dm-coral/40 hover:shadow-sm hover:scale-105
                            transition-all duration-200 animate-chip-in"

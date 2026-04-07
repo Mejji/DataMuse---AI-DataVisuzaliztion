@@ -348,11 +348,11 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
         className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-card border border-border/60 rounded-2xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
+      <div className="relative w-full max-w-full sm:max-w-6xl max-h-[90vh] bg-card border border-border/60 rounded-2xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/60">
-          <h2 className="font-display font-bold text-xl text-foreground truncate pr-4">
+          <h2 className="font-display font-bold text-base sm:text-xl text-foreground truncate pr-4">
             {chart.title}
           </h2>
           <button
@@ -364,10 +364,10 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 px-4 pt-4 border-b border-border/60">
+        <div className="flex items-center gap-2 px-4 pt-4 border-b border-border/60 overflow-x-auto">
           <button
             onClick={() => setActiveTab('chart')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'chart'
                 ? 'border-dm-coral text-dm-coral'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -378,7 +378,7 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
           </button>
           <button
             onClick={() => setActiveTab('data')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'data'
                 ? 'border-dm-teal text-dm-teal'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -389,7 +389,7 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
           </button>
           <button
             onClick={() => setActiveTab('customize')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'customize'
                 ? 'border-dm-violet text-dm-violet'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -401,15 +401,15 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {activeTab === 'customize' && (
-            <div className="w-80 border-r border-border/60 p-6 bg-muted/10 flex-shrink-0">
+            <div className="w-full md:w-80 max-h-[40vh] md:max-h-none overflow-y-auto border-r border-border/60 p-6 bg-muted/10 flex-shrink-0">
               {renderCustomizeTab()}
             </div>
           )}
           <div className="flex-1 overflow-auto p-6">
             {activeTab === 'chart' || activeTab === 'customize' ? (
-              <div className="w-full h-full min-h-[500px] flex items-center justify-center">
+              <div className="w-full h-full min-h-[250px] md:min-h-[500px] flex items-center justify-center">
                 <ChartRenderer config={chart} height={options.height || 500} options={options} />
               </div>
             ) : (

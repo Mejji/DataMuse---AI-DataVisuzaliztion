@@ -33,7 +33,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       )}
       <div
         className={`
-          rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[90%]
+          rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[95%] sm:max-w-[90%]
           ${isMuse
             ? 'bg-card border border-border/60 text-foreground shadow-sm'
             : 'bg-gradient-to-r from-dm-slate to-dm-slate/90 text-white ml-auto shadow-md shadow-dm-slate/10'
@@ -83,7 +83,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                         hover:shadow-md transition-shadow duration-200 animate-scale-in cursor-pointer"
           onClick={() => setIsDetailOpen(true)}
         >
-          <ChartRenderer config={message.chart_config} height={200} />
+          <ChartRenderer config={message.chart_config} height={160} />
           <div className="flex gap-3 mt-3 pt-3 border-t border-border/40">
             <button
               onClick={(e) => {

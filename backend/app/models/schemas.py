@@ -9,6 +9,8 @@ class ColumnProfile(BaseModel):
     null_count: int
     unique_count: int
     sample_values: list
+    # Column classification for smart filtering
+    column_class: Optional[str] = None  # "numeric", "categorical", "datetime", "json_nested", "long_text", "id"
     # Numeric columns
     mean: Optional[float] = None
     median: Optional[float] = None
