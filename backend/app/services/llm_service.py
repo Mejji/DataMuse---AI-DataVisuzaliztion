@@ -7,7 +7,7 @@ import pandas as pd
 from groq import Groq
 from cerebras.cloud.sdk import Cerebras
 from openai import OpenAI as _OpenAI
-from app.config import settings, ModelEntry
+from app.config import settings, ModelEntry, classify_complexity
 from app.services.muse_prompts import (
     MUSE_SYSTEM_PROMPT,
     VISUALIZATION_SUGGESTION_PROMPT,
@@ -1061,20 +1061,26 @@ gemini_client = _OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
 )
 
+
 # ---------------------------------------------------------------------------
-# Model Load Balancer (multi-provider)
+# Model Load Balancer (multi-provider, tier-aware)
 #
 # Groq, Cerebras, and Gemini models each have independent rate limits.
-# By round-robin rotating across all providers we maximise daily capacity.
+# Models are organized into tiers (1=strong, 2=mid, 3=fast).  The router
+# picks from the requested tier first, then escalates to stronger tiers
+# if the requested tier is exhausted.
+#
 # On a 429 (rate limit), we mark that model exhausted and skip to the next.
 # ---------------------------------------------------------------------------
 _lock = threading.Lock()
-_current_model_index = 0
+_current_tier_index: dict[int, int] = {1: 0, 2: 0, 3: 0}  # per-tier round-robin
 _exhausted_models: dict[str, float] = {}  # "provider:model" -> timestamp
 _EXHAUSTION_TTL = 60.0  # seconds before a rate-limited model is retried
 
-# Model pinning: keep the same model for a conversation (keyed by dataset_id)
-# so multi-turn chats don't get confused by model switches mid-conversation.
+# Tier pinning: keep the same tier for a conversation (keyed by dataset_id)
+# so multi-turn chats maintain consistent quality level.
+_pinned_tiers: dict[str, int] = {}  # dataset_id -> tier number
+# Also keep model pinning within the tier for conversation coherence
 _pinned_models: dict[str, ModelEntry] = {}  # dataset_id -> ModelEntry
 
 import time as _time
@@ -1085,14 +1091,31 @@ def _model_key(entry: ModelEntry) -> str:
     return f"{entry.provider}:{entry.model}"
 
 
-def _get_next_model() -> ModelEntry | None:
-    """Return the next available model via round-robin. Skip exhausted ones.
-    Models auto-recover after _EXHAUSTION_TTL seconds.
-    Returns None if ALL models are currently exhausted."""
-    global _current_model_index
-    pool = settings.MODEL_POOL
-    pool_size = len(pool)
+def _get_tier_pool(tier: int) -> list[ModelEntry]:
+    """Return models belonging to a specific tier."""
+    return [m for m in settings.MODEL_POOL if m.tier == tier]
+
+
+def _get_next_model(tier: int = 2) -> ModelEntry | None:
+    """Return the next available model for the given tier via round-robin.
+
+    If no models are available in the requested tier, escalates:
+      tier 3 → try tier 2 → try tier 1
+      tier 2 → try tier 1
+      tier 1 → no escalation (already strongest)
+
+    Returns None if ALL models across all eligible tiers are exhausted.
+    """
+    global _current_tier_index
     now = _time.monotonic()
+
+    # Build escalation path: requested tier first, then stronger tiers
+    if tier == 3:
+        tier_order = [3, 2, 1]
+    elif tier == 2:
+        tier_order = [2, 1]
+    else:
+        tier_order = [1]
 
     with _lock:
         # Expire stale exhaustions
@@ -1101,12 +1124,21 @@ def _get_next_model() -> ModelEntry | None:
             del _exhausted_models[m]
             print(f"[load-balancer] Model '{m}' cooldown expired — available again")
 
-        # Try each model in the pool starting from current index
-        for _ in range(pool_size):
-            entry = pool[_current_model_index % pool_size]
-            _current_model_index = (_current_model_index + 1) % pool_size
-            if _model_key(entry) not in _exhausted_models:
-                return entry
+        for try_tier in tier_order:
+            pool = _get_tier_pool(try_tier)
+            pool_size = len(pool)
+            if pool_size == 0:
+                continue
+
+            start_idx = _current_tier_index.get(try_tier, 0)
+            for i in range(pool_size):
+                idx = (start_idx + i) % pool_size
+                entry = pool[idx]
+                if _model_key(entry) not in _exhausted_models:
+                    _current_tier_index[try_tier] = (idx + 1) % pool_size
+                    if try_tier != tier:
+                        print(f"[load-balancer] Tier {tier} exhausted — escalated to tier {try_tier}")
+                    return entry
 
     return None  # all models exhausted
 
@@ -1116,14 +1148,22 @@ def _mark_exhausted(entry: ModelEntry) -> None:
     key = _model_key(entry)
     with _lock:
         _exhausted_models[key] = _time.monotonic()
-    print(f"[load-balancer] Model '{key}' rate-limited (cooldown={_EXHAUSTION_TTL}s). "
-          f"Exhausted: {len(_exhausted_models)}/{len(settings.MODEL_POOL)}")
+    tier_pool = _get_tier_pool(entry.tier)
+    exhausted_in_tier = sum(
+        1 for m in tier_pool if _model_key(m) in _exhausted_models
+    )
+    print(f"[load-balancer] Model '{key}' (tier {entry.tier}) rate-limited "
+          f"(cooldown={_EXHAUSTION_TTL}s). "
+          f"Tier {entry.tier}: {exhausted_in_tier}/{len(tier_pool)} exhausted, "
+          f"Total: {len(_exhausted_models)}/{len(settings.MODEL_POOL)}")
 
 
 def _pin_model(dataset_id: str, entry: ModelEntry) -> None:
-    """Pin a model to a dataset conversation for consistency."""
+    """Pin a model and its tier to a dataset conversation for consistency."""
     _pinned_models[dataset_id] = entry
-    print(f"[load-balancer] Pinned model '{entry.provider}:{entry.model}' to dataset '{dataset_id}'")
+    _pinned_tiers[dataset_id] = entry.tier
+    print(f"[load-balancer] Pinned model '{entry.provider}:{entry.model}' "
+          f"(tier {entry.tier}) to dataset '{dataset_id}'")
 
 
 def _get_pinned_model(dataset_id: str) -> ModelEntry | None:
@@ -1137,9 +1177,29 @@ def _get_pinned_model(dataset_id: str) -> ModelEntry | None:
         now = _time.monotonic()
         ts = _exhausted_models.get(key)
         if ts is not None and now - ts < _EXHAUSTION_TTL:
-            print(f"[load-balancer] Pinned model '{key}' is rate-limited — falling back to round-robin")
+            print(f"[load-balancer] Pinned model '{key}' is rate-limited — "
+                  f"falling back to tier {entry.tier} round-robin")
             return None
     return entry
+
+
+def _get_pinned_tier(dataset_id: str) -> int | None:
+    """Get the pinned tier for a dataset conversation."""
+    return _pinned_tiers.get(dataset_id)
+
+
+def _upgrade_tier_pin(dataset_id: str, new_tier: int) -> None:
+    """Upgrade (lower number = stronger) a conversation's tier pin if needed.
+
+    Only upgrades — never downgrades an active conversation to a weaker tier.
+    """
+    current = _pinned_tiers.get(dataset_id)
+    if current is None or new_tier < current:
+        _pinned_tiers[dataset_id] = new_tier
+        # Clear model pin so next request picks from the new tier
+        _pinned_models.pop(dataset_id, None)
+        print(f"[load-balancer] Upgraded dataset '{dataset_id}' tier pin: "
+              f"{current} → {new_tier}")
 
 
 def _is_request_too_large(exc: Exception) -> bool:
@@ -1293,12 +1353,15 @@ def _dispatch_completion(entry: ModelEntry, **kwargs):
 
 
 def _completion_with_failover(*, messages: list, tools=None,
-                              tool_choice=None, temperature: float = 0.7,
-                              max_tokens: int = 2048, response_format=None,
-                              label: str = "", preferred_model: ModelEntry | None = None):
-    """Try models round-robin. On 429, failover to next model in pool.
+                               tool_choice=None, temperature: float = 0.7,
+                               max_tokens: int = 2048, response_format=None,
+                               label: str = "", preferred_model: ModelEntry | None = None,
+                               tier: int = 2):
+    """Try models from the requested tier. On 429, failover to next model.
 
     If *preferred_model* is set, try it first (for conversation pinning).
+    *tier* controls which pool to draw from (1=strong, 2=mid, 3=fast).
+    Models escalate to stronger tiers if the requested tier is exhausted.
     Returns ``(response, model_entry_used)`` tuple.
 
     Also handles Groq quirks: tool_use_failed retries on next model,
@@ -1308,14 +1371,14 @@ def _completion_with_failover(*, messages: list, tools=None,
     attempts = 0
     last_error: Exception | None = None
 
-    # Build ordered list: preferred model first (if set), then round-robin
+    # Build ordered list: preferred model first (if set), then tier-aware round-robin
     def _next_entry() -> ModelEntry | None:
         nonlocal preferred_model
         if preferred_model is not None:
             m = preferred_model
             preferred_model = None  # only try once
             return m
-        return _get_next_model()
+        return _get_next_model(tier=tier)
 
     pool_size = len(settings.MODEL_POOL)
     max_attempts = pool_size + (1 if preferred_model else 0)
@@ -1457,6 +1520,20 @@ def chat_with_muse(
     )
     messages.append({"role": "user", "content": enriched_message})
 
+    # Classify complexity and determine the right tier for this request
+    tier = classify_complexity(user_message)
+
+    # Check if conversation already has a pinned tier (only upgrade, never downgrade)
+    pinned_tier = _get_pinned_tier(dataset_id)
+    if pinned_tier is not None:
+        tier = min(tier, pinned_tier)  # lower number = stronger
+    if tier < (pinned_tier or 99):
+        _upgrade_tier_pin(dataset_id, tier)
+
+    print(f"[chat_with_muse] Complexity tier={tier} for: "
+          f"'{user_message[:80]}...' "
+          f"(pinned_tier={pinned_tier})")
+
     # Call with tools — use pinned model if this dataset has one
     pinned = _get_pinned_model(dataset_id)
     response, model_used = _completion_with_failover(
@@ -1467,6 +1544,7 @@ def chat_with_muse(
         max_tokens=2048,
         label="chat_with_muse",
         preferred_model=pinned,
+        tier=tier,
     )
     # Pin model to this conversation for consistency across turns
     _pin_model(dataset_id, model_used)
@@ -1553,7 +1631,7 @@ def chat_with_muse(
                 "content": json.dumps(tool_result, default=str)[:3000],
             })
 
-        # Get next response — pin to same model for consistency
+        # Get next response — pin to same model and tier for consistency
         response, model_used = _completion_with_failover(
             messages=messages,
             tools=TOOL_DEFINITIONS,
@@ -1562,6 +1640,7 @@ def chat_with_muse(
             max_tokens=2048,
             label="chat_with_muse:loop",
             preferred_model=model_used,
+            tier=tier,
         )
         msg = response.choices[0].message
 
@@ -1731,6 +1810,7 @@ def suggest_visualizations(profile: dict, sample_rows: list[dict]) -> list[dict]
             max_tokens=3000,
             response_format={"type": "json_object"},
             label="suggest_visualizations",
+            tier=1,  # needs reliable JSON output + reasoning
         )
     except Exception as e:
         print(f"[suggest_visualizations] All attempts failed: {e}")
@@ -1743,6 +1823,7 @@ def suggest_visualizations(profile: dict, sample_rows: list[dict]) -> list[dict]
             temperature=0.7,
             max_tokens=3000,
             label="suggest_visualizations:fallback",
+            tier=1,
         )
 
     raw = response.choices[0].message.content
@@ -1792,6 +1873,7 @@ def generate_story_draft(profile: dict, insights: list[str]) -> dict:
             max_tokens=4000,
             response_format={"type": "json_object"},
             label="generate_story_draft",
+            tier=1,  # needs strong reasoning + long narrative output
         )
     except Exception as e:
         print(f"[generate_story_draft] All attempts failed: {e}")
@@ -1804,6 +1886,7 @@ def generate_story_draft(profile: dict, insights: list[str]) -> dict:
             temperature=0.7,
             max_tokens=4000,
             label="generate_story_draft:fallback",
+            tier=1,
         )
 
     try:

@@ -11,7 +11,7 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 - **Interactive Dashboard** — accumulating multi-panel dashboard that builds as you explore
 - **Story Builder** — AI-drafted data stories with chapters, narratives, and embedded visualizations
 - **RAG-powered Context** — Qdrant vector DB indexes your data for accurate, grounded answers
-- **Multi-Provider Load Balancer** — round-robin rotation across 8 models from 3 providers (Groq, Cerebras, Gemini) with automatic failover (~47K+ requests/day)
+- **Tiered Model Router** — complexity-based routing across 8 models from 3 providers (Groq, Cerebras, Gemini) — strong models for charts and analytics, fast models for simple questions (~47K+ requests/day)
 
 ## Tech Stack
 
@@ -19,7 +19,7 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Recharts, Zustand |
 | Backend | Python, FastAPI, Pandas, SentenceTransformers |
-| LLM | Groq, Cerebras, Google Gemini — 8 models, multi-provider load-balanced |
+| LLM | Groq, Cerebras, Google Gemini — 8 models, tiered complexity routing |
 | Vector DB | Qdrant (Docker) |
 
 ## Quick Start
@@ -87,33 +87,64 @@ start.bat
 
 Open **http://localhost:5173** and upload a CSV to get started.
 
-## LLM Load Balancer
+## LLM Model Router
 
-DataMuse uses a **multi-provider load balancer** that rotates across 8 models from 3 providers. Each model has independent rate limits, and cascading across providers gives you massive daily throughput:
+DataMuse uses a **tiered model router** that matches request complexity to the right model. Instead of blind round-robin, each user message is classified into a complexity tier, and the router selects from models best suited for that tier. This maximizes model utilization — strong models handle charts and analytics, fast models handle simple questions.
 
-### Provider Chain: Groq → Cerebras → Gemini
+### Complexity Tiers
 
-| Provider | Model | Requests/Day | Tokens/Day |
-|----------|-------|-------------|-----------|
-| Groq | `llama-3.3-70b-versatile` | 1,000 | 100,000 |
-| Groq | `moonshotai/kimi-k2-instruct` | 1,000 | 300,000 |
-| Groq | `qwen/qwen3-32b` | 1,000 | 500,000 |
-| Groq | `meta-llama/llama-4-scout-17b-16e-instruct` | 1,000 | 500,000 |
-| Groq | `llama-3.1-8b-instant` | 14,400 | 500,000 |
-| Cerebras | `llama3.1-8b` | 14,400 | 1,000,000 |
-| Cerebras | `qwen-3-235b-a22b-instruct-2507` | 14,400 | 1,000,000 |
-| Gemini | `gemini-2.5-flash` | 250 | 250,000 TPM |
-| **Combined** | **8 models** | **~47,450** | **~4,150,000** |
+| Tier | Role | Models | When Used |
+|------|------|--------|-----------|
+| **1 — Strong** | Reliable tool calling, complex reasoning, long output | `llama-3.3-70b-versatile`, `qwen-3-235b`, `gemini-2.5-flash` | Chart generation, analytics, correlations, stories, data mutations |
+| **2 — Mid** | Decent quality, good throughput | `kimi-k2-instruct`, `qwen3-32b`, `llama-4-scout-17b` | General conversation, moderate questions |
+| **3 — Fast** | Lightweight, high RPD | `llama-3.1-8b-instant`, `llama3.1-8b` | "What columns?", "How many rows?", greetings |
 
-**How it works:**
-- **Round-robin rotation**: each request goes to the next model in the pool
-- **Multi-provider dispatch**: routes to the correct provider client (Groq, Cerebras, or Gemini) automatically
-- **Model pinning**: once a model is chosen for a conversation, it sticks — so context isn't lost mid-chat
-- **429 failover**: on rate limit, that model is marked exhausted with a 60-second TTL cooldown, then the next model is tried
-- **TPM handling**: tokens-per-minute errors trigger context trimming and retry on the same model
-- **`tool_use_failed` recovery**: failover to the next model while preserving tool calling
-- **`<think>` stripping**: chain-of-thought tags from reasoning models are automatically cleaned
-- **Thread-safe**: works correctly under concurrent requests
+### Routing Examples
+
+| User Message | Tier | Why |
+|---|---|---|
+| "Show me a bar chart of sales by region" | 1 | Needs reliable tool calling |
+| "What correlates with revenue?" | 1 | Complex analytical reasoning |
+| "Remove outliers from price column" | 1 | Data mutation (high stakes) |
+| "Generate a story about the data" | 1 | Long narrative output |
+| "What's the average price per category?" | 2 | Moderate question, no tool calling needed |
+| "Tell me about the dataset" | 2 | General conversation |
+| "What columns are there?" | 3 | Trivial metadata lookup |
+| "How many rows?" | 3 | Trivial metadata lookup |
+| "Hello" | 3 | Greeting |
+
+### Model Pool
+
+| Tier | Provider | Model | Requests/Day | Tokens/Day |
+|------|----------|-------|-------------|-----------|
+| 1 | Groq | `llama-3.3-70b-versatile` | 1,000 | 100,000 |
+| 1 | Cerebras | `qwen-3-235b-a22b-instruct-2507` | 14,400 | 1,000,000 |
+| 1 | Gemini | `gemini-2.5-flash` | 250 | 250,000 TPM |
+| 2 | Groq | `moonshotai/kimi-k2-instruct` | 1,000 | 300,000 |
+| 2 | Groq | `qwen/qwen3-32b` | 1,000 | 500,000 |
+| 2 | Groq | `meta-llama/llama-4-scout-17b-16e-instruct` | 1,000 | 500,000 |
+| 3 | Groq | `llama-3.1-8b-instant` | 14,400 | 500,000 |
+| 3 | Cerebras | `llama3.1-8b` | 14,400 | 1,000,000 |
+| | **Combined: 8 models** | | **~47,450** | **~4,150,000** |
+
+### How It Works
+
+1. **Complexity classification**: each user message is classified into a tier (1/2/3) using a zero-latency regex classifier — no extra LLM call
+2. **Tier-aware round-robin**: the router picks from the matching tier's pool, rotating across models to distribute rate limits
+3. **Automatic escalation**: if all models in a tier are rate-limited, the router escalates to the next stronger tier (3 → 2 → 1)
+4. **Tier pinning**: conversations pin to a tier and only upgrade — if a user starts with "hello" (tier 3) then asks "show me a chart" (tier 1), the conversation upgrades to tier 1 for the rest of the session
+5. **Model pinning**: within a tier, the router pins to a specific model for conversation coherence
+6. **429 failover**: on rate limit, that model is marked exhausted with a 60-second TTL cooldown
+7. **TPM handling**: tokens-per-minute errors trigger context trimming and retry on the same model
+8. **`tool_use_failed` recovery**: failover to the next model while preserving tool calling
+9. **`<think>` stripping**: chain-of-thought tags from reasoning models are automatically cleaned
+10. **Thread-safe**: works correctly under concurrent requests
+
+### Fixed-Tier Endpoints
+
+Some endpoints always use tier 1 regardless of user input:
+- **Visualization suggestions** (`/api/analyze`) — needs reliable JSON output
+- **Story generation** (`/api/story/generate`) — needs strong reasoning + long narrative
 
 ## Project Structure
 
@@ -124,7 +155,7 @@ AI-Visualization/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app entry point
-│   │   ├── config.py            # Environment + model pool configuration
+│   │   ├── config.py            # Environment, model pool + tier config, complexity classifier
 │   │   ├── models/
 │   │   │   └── schemas.py       # Pydantic request/response models
 │   │   ├── routers/
@@ -133,7 +164,7 @@ AI-Visualization/
 │   │   │   ├── analyze.py       # AI visualization suggestions
 │   │   │   └── story.py         # Story generation
 │   │   └── services/
-│   │       ├── llm_service.py   # Multi-provider load balancer + function calling
+│   │       ├── llm_service.py   # Tiered model router + function calling
 │   │       ├── muse_prompts.py  # System prompt + analytical knowledge
 │   │       ├── data_tools.py    # query_data, create_chart, create_table, compute_stats, detect_patterns
 │   │       ├── csv_profiler.py  # DataFrame profiling
