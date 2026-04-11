@@ -185,6 +185,23 @@ AI-Visualization/
 | `QDRANT_HOST` | Qdrant hostname | `localhost` |
 | `QDRANT_PORT` | Qdrant port | `6333` |
 
+## Security Notice
+
+DataMuse is designed for **local and internal use** by default. The included start scripts run development servers suitable for personal use and experimentation.
+
+If you plan to deploy DataMuse on a public network, you **must** configure:
+
+- **CORS origins** — update the allowed origins in `backend/app/main.py` to match your production domain
+- **HTTPS/TLS** — use a reverse proxy (e.g., nginx, Caddy) with a valid certificate
+- **Rate limiting** — add rate limiting on `/api/upload` and `/api/chat` endpoints
+- **Authentication** — add an authentication layer; DataMuse does not include built-in auth
+
+See [SECURITY.md](SECURITY.md) for the full security policy and vulnerability reporting instructions.
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to report bugs, suggest features, and submit pull requests.
+
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE) for details.
