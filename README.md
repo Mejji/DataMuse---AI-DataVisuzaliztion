@@ -187,4 +187,4 @@ AI-Visualization/
 
 ## License
 
-MIT
+GPL
