@@ -187,4 +187,4 @@ AI-Visualization/
 
 ## License
 
-GPL
+GPL-3.0 — see [LICENSE](LICENSE) for details.
