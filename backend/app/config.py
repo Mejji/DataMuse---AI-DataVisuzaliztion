@@ -117,7 +117,7 @@ class Settings:
     QDRANT_URL: str = os.getenv("QDRANT_URL", "")
     QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
     ALLOWED_ORIGINS: list[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     MAX_CSV_ROWS: int = 50000
     MAX_CSV_SIZE_MB: int = 50
 

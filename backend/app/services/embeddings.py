@@ -1,5 +1,5 @@
 import gc
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 import pandas as pd
 import numpy as np
 from qdrant_client.models import PointStruct
@@ -7,22 +7,21 @@ from app.services.qdrant_service import ensure_collection, upsert_points
 
 # ---------------------------------------------------------------------------
 # Lazy-loaded model — only initialised on first call to embed_text/embed_texts.
-# SentenceTransformer loads ~400 MB into RAM, so deferring it avoids paying
-# that cost at import time (e.g. during type checking or test collection).
+# fastembed uses ONNX (no PyTorch), keeping RAM usage well under 200 MB.
 # ---------------------------------------------------------------------------
-_model: SentenceTransformer | None = None
+_model: TextEmbedding | None = None
 
 
-def _get_model() -> SentenceTransformer:
+def _get_model() -> TextEmbedding:
     global _model
     if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
+        _model = TextEmbedding("BAAI/bge-small-en-v1.5")
     return _model
 
 
 def embed_text(text: str) -> list[float]:
     """Generate embedding for a single text."""
-    return _get_model().encode(text).tolist()
+    return list(next(iter(_get_model().embed([text]))))
 
 
 # Maximum texts to encode in a single batch.  Keeps peak memory bounded
@@ -40,14 +39,13 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     """
     model = _get_model()
     if len(texts) <= _ENCODE_BATCH_SIZE:
-        return model.encode(texts).tolist()
+        return [list(v) for v in model.embed(texts)]
 
     all_vectors: list[list[float]] = []
     for i in range(0, len(texts), _ENCODE_BATCH_SIZE):
         batch = texts[i : i + _ENCODE_BATCH_SIZE]
-        vectors = model.encode(batch).tolist()
+        vectors = [list(v) for v in model.embed(batch)]
         all_vectors.extend(vectors)
-        # Free intermediary numpy arrays between batches
         if i + _ENCODE_BATCH_SIZE < len(texts):
             gc.collect()
     return all_vectors
