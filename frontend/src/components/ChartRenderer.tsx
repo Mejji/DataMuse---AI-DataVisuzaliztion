@@ -251,7 +251,7 @@ export function ChartRenderer({ config, height = 400, options }: ChartRendererPr
             aspectRatio={4 / 3}
             stroke={gridStroke}
             content={({ x, y, width, height, name, value, index }: any) => {
-              if (width < 40 || height < 30) return null;
+              if (width < 40 || height < 30) return <g />;
               const color = getColor(index ?? 0);
               return (
                 <g>
@@ -429,7 +429,7 @@ export function ChartRenderer({ config, height = 400, options }: ChartRendererPr
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />}
             <XAxis dataKey={chartConfig.xAxisKey || 'category'} tick={axisStyle} stroke={axisStroke} />
             <YAxis tick={axisStyle} stroke={axisStroke} />
-            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any, name: string) => {
+            {showTooltip && <Tooltip contentStyle={dynamicTooltipStyle} formatter={(value: any, name: any): any => {
               if (name === 'Whisker' || name === 'Upper') return [null, null];
               const entry = boxData.find(() => true);
               if (!entry) return [value, name];
@@ -563,7 +563,6 @@ export function ChartRenderer({ config, height = 400, options }: ChartRendererPr
             <Bar dataKey="_wickRange" barSize={2} fill="transparent"
               shape={(props: any) => {
                 const { x, width, payload } = props;
-                const yScale = props.background ? undefined : props;
                 if (!payload) return null;
                 const bullish = payload.close >= payload.open;
                 const color = bullish ? getColor(2) : getColor(0);

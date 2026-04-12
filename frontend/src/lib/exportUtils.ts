@@ -38,7 +38,6 @@ const COLOR_PROPS = [
  */
 const OKLCH_RE = /oklch\((?:[^()]*|\([^()]*\))*\)/gi;
 const OKLAB_RE = /oklab\((?:[^()]*|\([^()]*\))*\)/gi;
-const OK_COLOR_RE = /ok(?:lch|lab)\((?:[^()]*|\([^()]*\))*\)/gi;
 
 // ---------------------------------------------------------------------------
 // Pure JS: oklch → sRGB conversion
@@ -239,7 +238,6 @@ const buildOklchOverrideStylesheet = (): string => {
   const overrides: string[] = [];
 
   // Read computed custom properties from :root
-  const rootStyle = window.getComputedStyle(document.documentElement);
   const rootOverrides: string[] = [];
   const darkOverrides: string[] = [];
 

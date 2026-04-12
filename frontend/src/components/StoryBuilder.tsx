@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, Sparkles, BookOpen, Download, Plus, Library, Trash2, ChevronDown, Send, Wand2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, BookOpen, Download, Plus, Library, Trash2, Wand2 } from 'lucide-react';
 import { StoryChapterCard } from './StoryChapter';
 import { generateStory, getStoryAngles } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';

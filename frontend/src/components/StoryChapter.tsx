@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GripVertical, Trash2, Edit3, Check, Wand2, Loader2, Send, X } from 'lucide-react';
+import { GripVertical, Trash2, Edit3, Check, Wand2, Loader2, Send } from 'lucide-react';
 import { ChartRenderer } from './ChartRenderer';
 import { refineChapter } from '../lib/api';
 import type { StoryChapter as StoryChapterType } from '../lib/api';
