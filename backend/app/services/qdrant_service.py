@@ -7,7 +7,10 @@ from qdrant_client.models import (
 )
 from app.config import settings
 
-client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+if settings.QDRANT_URL:
+    client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None)
+else:
+    client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
 
 
 def ensure_collection(collection_name: str, vector_size: int = 384):

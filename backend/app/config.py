@@ -114,6 +114,9 @@ class Settings:
     MODEL_POOL: list[ModelEntry] = MODEL_POOL
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_URL: str = os.getenv("QDRANT_URL", "")
+    QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
+    ALLOWED_ORIGINS: list[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     MAX_CSV_ROWS: int = 50000
     MAX_CSV_SIZE_MB: int = 50
