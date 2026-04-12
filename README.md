@@ -2,7 +2,7 @@
 
 AI-powered data visualization and storytelling tool. Upload a CSV, chat with **Muse** (your friendly data analyst), and build chapter-based data stories — no technical skills required.
 
-![DataMuse Landing](https://img.shields.io/badge/status-MVP-blueviolet) ![Python](https://img.shields.io/badge/python-3.11+-blue) ![React](https://img.shields.io/badge/react-18-61dafb)
+![DataMuse Landing](https://img.shields.io/badge/status-MVP-blueviolet) ![Python](https://img.shields.io/badge/python-3.11+-blue) ![React](https://img.shields.io/badge/react-19-61dafb)
 
 ## Features
 
@@ -17,10 +17,14 @@ AI-powered data visualization and storytelling tool. Upload a CSV, chat with **M
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Recharts, Zustand |
-| Backend | Python, FastAPI, Pandas, SentenceTransformers |
+| Frontend | React 19, TypeScript, Vite, TailwindCSS, shadcn/ui, Recharts, Zustand |
+| Backend | Python, FastAPI, Pandas, fastembed (ONNX) |
 | LLM | Groq, Cerebras, Google Gemini — 8 models, tiered complexity routing |
 | Vector DB | Qdrant (Docker) |
+
+## Deployment Note
+
+> **Local deployment is strongly recommended.** DataMuse relies on Qdrant (vector DB), fastembed (ONNX model ~130 MB), and multiple LLM providers with aggressive rate limits. Free-tier cloud hosts (Render, Railway, etc.) often hit memory limits, cold-start timeouts, and CORS issues that make the experience unreliable. Running locally avoids all of this and gives you the smoothest experience.
 
 ## Quick Start
 
@@ -209,13 +213,14 @@ AI-Visualization/
 │   │   │   ├── upload.py        # CSV upload + profiling
 │   │   │   ├── chat.py          # Chat with Muse
 │   │   │   ├── analyze.py       # AI visualization suggestions
-│   │   │   └── story.py         # Story generation
+│   │   │   ├── story.py         # Story generation
+│   │   │   └── data.py          # Apply/undo mutations, download, history
 │   │   └── services/
 │   │       ├── llm_service.py   # Tiered model router + function calling
 │   │       ├── muse_prompts.py  # System prompt + analytical knowledge
 │   │       ├── data_tools.py    # query_data, create_chart, create_table, compute_stats, detect_patterns
 │   │       ├── csv_profiler.py  # DataFrame profiling
-│   │       ├── embeddings.py    # SentenceTransformer + chunking
+│   │       ├── embeddings.py    # fastembed (ONNX) + chunking
 │   │       └── qdrant_service.py # Qdrant vector operations
 │   └── requirements.txt
 ├── frontend/
@@ -248,10 +253,17 @@ AI-Visualization/
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
 | `POST` | `/api/upload` | Upload CSV file |
+| `GET` | `/api/datasets/{id}` | Get dataset profile |
 | `POST` | `/api/chat` | Chat with Muse |
 | `GET` | `/api/analyze/{id}` | Get visualization suggestions |
+| `GET` | `/api/story/angles` | Get story angle suggestions |
+| `POST` | `/api/story/refine` | Refine a story angle |
 | `POST` | `/api/story/generate` | Generate data story |
 | `POST` | `/api/story/save` | Save edited story |
+| `POST` | `/api/apply` | Apply a data mutation |
+| `POST` | `/api/undo` | Undo last mutation |
+| `GET` | `/api/download/{id}` | Download mutated dataset |
+| `GET` | `/api/history/{id}` | Get mutation history |
 
 ## Environment Variables
 

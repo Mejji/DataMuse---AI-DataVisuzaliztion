@@ -355,7 +355,7 @@ async def upload_csv(file: UploadFile = File(...)):
     _evict_if_needed()
 
     # Run embedding in a thread pool so we don't block the async event loop.
-    # ingest_dataset is CPU-heavy (SentenceTransformer.encode) and takes
+    # ingest_dataset is CPU-heavy (fastembed ONNX encode) and takes
     # 5-10 s on a 40k-row dataset — blocking the event loop causes the HTTP
     # proxy to see an ECONNRESET.
     loop = asyncio.get_running_loop()
