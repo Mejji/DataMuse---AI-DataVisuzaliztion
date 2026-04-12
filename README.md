@@ -146,6 +146,53 @@ Some endpoints always use tier 1 regardless of user input:
 - **Visualization suggestions** (`/api/analyze`) — needs reliable JSON output
 - **Story generation** (`/api/story/generate`) — needs strong reasoning + long narrative
 
+### Upgrading to Premium Models
+
+By default, DataMuse uses **free-tier APIs** (Groq, Cerebras, Gemini free tier) to keep running costs at $0. If you want higher quality, faster responses, or higher rate limits, you can swap in paid models — it's a one-file change.
+
+**File to edit:** `backend/app/config.py` → `MODEL_POOL`
+
+Each entry is a `ModelEntry(provider, model_name, tier)`. Just replace the model string:
+
+```python
+# backend/app/config.py
+
+MODEL_POOL: list[ModelEntry] = [
+    # --- Tier 1: Strong ---
+    # Free default → GPT-4o (OpenAI)
+    ModelEntry("openai",   "gpt-4o",                    tier=1),
+    # Free default → Claude Opus 4 (Anthropic)
+    ModelEntry("anthropic","claude-opus-4-5",            tier=1),
+    # Keep Gemini 2.5 Pro instead of Flash for best quality
+    ModelEntry("gemini",   "gemini-2.5-pro",             tier=1),
+
+    # --- Tier 2: Mid ---
+    ModelEntry("openai",   "gpt-4o-mini",               tier=2),
+    ModelEntry("anthropic","claude-haiku-3-5",           tier=2),
+
+    # --- Tier 3: Fast ---
+    ModelEntry("openai",   "gpt-4o-mini",               tier=3),
+    ModelEntry("groq",     "llama-3.1-8b-instant",      tier=3),
+]
+```
+
+**Supported providers and their `.env` keys:**
+
+| Provider | Models | Env Key | Pricing |
+|----------|--------|---------|---------|
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o3`, `o4-mini` | `OPENAI_API_KEY` | [openai.com/pricing](https://openai.com/pricing) |
+| **Anthropic** | `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-3-5` | `ANTHROPIC_API_KEY` | [anthropic.com/pricing](https://anthropic.com/pricing) |
+| **Google Gemini** | `gemini-2.5-pro`, `gemini-2.5-flash` | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) |
+| **Groq** | Any model on [console.groq.com/docs/models](https://console.groq.com/docs/models) | `GROQ_API_KEY` | Paid tiers available |
+
+> **OpenAI and Anthropic are not wired up by default** — to add them, install the SDKs (`pip install openai anthropic`) and add a matching `elif entry.provider == "openai"` / `elif entry.provider == "anthropic"` branch in the `_call_model()` function in `backend/app/services/llm_service.py`. The Gemini, Groq, and Cerebras integrations are already fully implemented and can be upgraded just by changing the model name string.
+
+**Best bang-for-buck recommendations:**
+- **Tightest budget:** Keep the free defaults — they're already strong (Qwen-3 235B, Gemini 2.5 Flash)
+- **Small spend:** Upgrade tier 1 to `gemini-2.5-pro` (swap `gemini-2.5-flash` → `gemini-2.5-pro` — same provider, no code change)
+- **Best quality:** GPT-4o for tier 1 + GPT-4o-mini for tiers 2/3 (requires OpenAI SDK + `_call_model` branch)
+- **Best quality + speed:** Claude Sonnet 4.5 for tier 1, Claude Haiku 3.5 for tiers 2/3
+
 ## Project Structure
 
 ```
