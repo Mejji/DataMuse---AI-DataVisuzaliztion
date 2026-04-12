@@ -5,6 +5,7 @@ import { TableRenderer } from './TableRenderer';
 import { ChartDetailModal } from './ChartDetailModal';
 import type { ChartConfig, TableConfig, ChartCustomizeOptions } from '../lib/api';
 import { useDataStore } from '../stores/useDataStore';
+import { exportChartAsPNG, exportDataAsCSV, exportDataAsExcel } from '../lib/exportUtils';
 
 interface DashboardPanelProps {
   id: string;
@@ -46,8 +47,8 @@ export function DashboardPanel({ id, chart, chartOptions, table, source, isHighl
 
   const title = table?.title ?? chart?.title ?? 'Dashboard Panel';
 
-  const handleExportPDF = () => {
-    exportChartAsPDF(id, title);
+  const handleExportPNG = () => {
+    exportChartAsPNG(id, title);
     setShowExportMenu(false);
   };
 
@@ -97,8 +98,8 @@ export function DashboardPanel({ id, chart, chartOptions, table, source, isHighl
               </button>
               {showExportMenu && (
                 <div className="absolute right-0 mt-1 w-40 bg-card border border-border/60 rounded-xl shadow-lg z-10 py-1 overflow-hidden">
-                  <button onClick={handleExportPDF} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground" /> Export as PDF
+                  <button onClick={handleExportPNG} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" /> Export as PNG
                   </button>
                   <button onClick={handleExportCSV} className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-accent flex items-center gap-2">
                     <FileCode className="w-3.5 h-3.5 text-muted-foreground" /> Export as CSV

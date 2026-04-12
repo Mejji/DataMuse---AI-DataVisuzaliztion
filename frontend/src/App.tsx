@@ -3,15 +3,52 @@ import { InteractiveDashboard } from './components/InteractiveDashboard';
 import { CompanionPanel } from './components/CompanionPanel';
 import { StoryBuilder } from './components/StoryBuilder';
 import { useDataStore } from './stores/useDataStore';
-import { RotateCcw, Sparkles, Sun, Moon, MessageSquare, X } from 'lucide-react';
+import { RotateCcw, Sparkles, Sun, Moon, MessageSquare, X, ShieldAlert } from 'lucide-react';
 import { useTheme } from './hooks/useTheme';
+import { useState, useEffect } from 'react';
+
+const PRIVACY_DISMISSED_KEY = 'datamuse-privacy-dismissed';
 
 function App() {
   const { view, reset, profile, isChatPanelOpen, setIsChatPanelOpen } = useDataStore();
   const { theme, toggleTheme } = useTheme();
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem(PRIVACY_DISMISSED_KEY)) {
+      setShowPrivacy(true);
+    }
+  }, []);
+
+  const dismissPrivacy = () => {
+    setShowPrivacy(false);
+    localStorage.setItem(PRIVACY_DISMISSED_KEY, '1');
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* Privacy disclosure banner */}
+      {showPrivacy && (
+        <div className="bg-dm-amber/10 border-b border-dm-amber/20 px-4 py-2.5 flex items-start sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <ShieldAlert className="w-4 h-4 text-dm-amber flex-shrink-0 mt-0.5 sm:mt-0" />
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              <span className="font-semibold">Privacy:</span> Your data is sent to third-party AI providers (Groq, Cerebras, Google) for analysis.
+              Avoid uploading sensitive data. For full privacy, use{' '}
+              <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="text-dm-teal font-medium hover:underline underline-offset-2">
+                local models via Ollama
+              </a>.
+            </p>
+          </div>
+          <button
+            onClick={dismissPrivacy}
+            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-0.5"
+            aria-label="Dismiss privacy notice"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
       {/* Top bar */}
       <header className="h-16 border-b border-border/60 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-50">
         <div className="flex items-center gap-3">

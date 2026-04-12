@@ -166,6 +166,11 @@ export function CompanionPanel() {
 
       {/* Input */}
       <div className="p-4 border-t border-border/60 bg-card/60">
+        {datasetId && (
+          <p className="text-[10px] text-muted-foreground/40 text-center mb-2">
+            Messages and data are processed by third-party AI providers
+          </p>
+        )}
         <div className="flex gap-2">
           <input
             type="text"

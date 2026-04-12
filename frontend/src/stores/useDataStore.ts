@@ -12,6 +12,14 @@ interface DashboardPanel {
   timestamp: string;
 }
 
+// A saved story in the library
+export interface SavedStory {
+  id: string;
+  story: Story;
+  angle: string;
+  createdAt: string;
+}
+
 interface DataState {
   // Dataset
   datasetId: string | null;
@@ -33,6 +41,7 @@ interface DataState {
   // Story
   story: Story | null;
   isStoryMode: boolean;
+  savedStories: SavedStory[];
 
   // Mutations
   mutationHistory: string[];
@@ -64,6 +73,11 @@ interface DataState {
   setView: (view: 'upload' | 'explore' | 'story') => void;
   setIsChatPanelOpen: (v: boolean) => void;
   sendChatMessage: (message: string) => Promise<void>;
+
+  // Story library actions
+  saveStoryToLibrary: (angle: string) => void;
+  loadStoryFromLibrary: (id: string) => void;
+  deleteStoryFromLibrary: (id: string) => void;
   
   // Mutation actions
   applyMutation: (previewId: string) => Promise<boolean>;
@@ -89,6 +103,7 @@ export const useDataStore = create<DataState>((set) => ({
   pinnedInsights: [],
   story: null,
   isStoryMode: false,
+  savedStories: [],
   mutationHistory: [],
   canUndo: false,
   view: 'upload',
@@ -218,9 +233,30 @@ export const useDataStore = create<DataState>((set) => ({
       downloadCSV(state.datasetId);
     }
   },
+  saveStoryToLibrary: (angle: string) => {
+    const state = useDataStore.getState();
+    if (!state.story) return;
+    const saved: SavedStory = {
+      id: `story-${Date.now()}`,
+      story: JSON.parse(JSON.stringify(state.story)),
+      angle,
+      createdAt: new Date().toISOString(),
+    };
+    set((s) => ({ savedStories: [...s.savedStories, saved] }));
+  },
+  loadStoryFromLibrary: (id: string) => {
+    const state = useDataStore.getState();
+    const found = state.savedStories.find((s) => s.id === id);
+    if (found) {
+      set({ story: JSON.parse(JSON.stringify(found.story)) });
+    }
+  },
+  deleteStoryFromLibrary: (id: string) => {
+    set((s) => ({ savedStories: s.savedStories.filter((s) => s.id !== id) }));
+  },
   reset: () => set({
     datasetId: null, profile: null, isUploading: false, isAnalyzing: false, messages: [], isChatLoading: false, suggestedPrompts: [], dashboardPanels: [],
     highlightedPanelId: null,
-    suggestions: [], pinnedInsights: [], story: null, isStoryMode: false, mutationHistory: [], canUndo: false, view: 'upload', isChatPanelOpen: false,
+    suggestions: [], pinnedInsights: [], story: null, isStoryMode: false, savedStories: [], mutationHistory: [], canUndo: false, view: 'upload', isChatPanelOpen: false,
   }),
 }));

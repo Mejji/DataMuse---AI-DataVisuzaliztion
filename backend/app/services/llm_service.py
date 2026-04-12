@@ -1856,12 +1856,15 @@ def suggest_visualizations(profile: dict, sample_rows: list[dict]) -> list[dict]
         return []
 
 
-def generate_story_draft(profile: dict, insights: list[str]) -> dict:
+def generate_story_draft(profile: dict, insights: list[str], angle_hint: str = "") -> dict:
     """Generate a story draft from dataset insights."""
     prompt = STORY_DRAFT_PROMPT.format(
         profile=json.dumps(profile, default=str)[:3000],
         insights="\n".join(insights[:10]),
     )
+
+    if angle_hint:
+        prompt += f"\n\nIMPORTANT — the user wants the story told from this angle:\n{angle_hint}\nTailor every chapter to this perspective."
 
     try:
         response, _ = _completion_with_failover(
@@ -1893,3 +1896,69 @@ def generate_story_draft(profile: dict, insights: list[str]) -> dict:
         return json.loads(response.choices[0].message.content)
     except json.JSONDecodeError:
         return {"title": "Your Data Story", "chapters": []}
+
+
+def refine_chapter_text(
+    profile: dict,
+    chapter_title: str,
+    chapter_narrative: str,
+    user_instruction: str,
+) -> dict:
+    """Use AI to refine a single story chapter based on user instructions.
+
+    Returns {"title": str, "narrative": str, "suggestions": list[str]}.
+    """
+    prompt = f"""You are Muse, editing a data story chapter. The user wants you to modify this chapter.
+
+Current chapter title: {chapter_title}
+Current chapter text:
+{chapter_narrative}
+
+Dataset context (column names and types):
+{json.dumps(profile, default=str)[:1500]}
+
+User's instruction: {user_instruction}
+
+Return a JSON object with:
+- "title": the updated chapter title (keep the original if user didn't ask to change it)
+- "narrative": the rewritten chapter text (2-3 paragraphs, warm editorial style)
+- "suggestions": a list of 3 short follow-up suggestions the user might want next (e.g. "Add specific percentages", "Make it more concise", "Focus on the top 3 categories")
+
+Rules:
+- Apply the user's instruction faithfully
+- Keep the warm, non-technical magazine style
+- Preserve any data references that are accurate
+- Each suggestion should be 3-8 words, actionable"""
+
+    try:
+        response, _ = _completion_with_failover(
+            messages=[
+                {"role": "system", "content": "You are a helpful data storytelling editor. Always respond with valid JSON only."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=2000,
+            response_format={"type": "json_object"},
+            label="refine_chapter",
+            tier=1,
+        )
+        result = json.loads(response.choices[0].message.content)
+        if "suggestions" not in result:
+            result["suggestions"] = [
+                "Make it more concise",
+                "Add specific numbers",
+                "Change the tone to formal",
+            ]
+        return result
+    except Exception as e:
+        print(f"[refine_chapter] Failed: {e}")
+        traceback.print_exc()
+        return {
+            "title": chapter_title,
+            "narrative": chapter_narrative,
+            "suggestions": [
+                "Try rephrasing your instruction",
+                "Make it more concise",
+                "Add specific numbers",
+            ],
+        }

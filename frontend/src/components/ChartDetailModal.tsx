@@ -118,7 +118,7 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
     const isRadar = chart.chart_type === 'radar';
 
     return (
-      <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+      <div className="flex flex-col gap-4 pb-2">
         {/* Colors Section */}
         <div className="border border-border/60 rounded-xl overflow-hidden">
           <button 
@@ -348,7 +348,7 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
         className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-full sm:max-w-6xl max-h-[90vh] bg-card border border-border/60 rounded-2xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
+      <div className="relative w-full max-w-full sm:max-w-5xl lg:max-w-6xl max-h-[90vh] bg-card border border-border/60 rounded-2xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/60">
@@ -401,15 +401,17 @@ export function ChartDetailModal({ chart, isOpen, onClose, panelId, initialOptio
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
           {activeTab === 'customize' && (
-            <div className="w-full md:w-80 max-h-[40vh] md:max-h-none overflow-y-auto border-r border-border/60 p-6 bg-muted/10 flex-shrink-0">
+            <div className="w-full md:w-72 lg:w-80 shrink-0 overflow-y-auto border-b md:border-b-0 md:border-r border-border/60 p-4 md:p-6 bg-muted/10
+                            max-h-[40vh] md:max-h-none md:overflow-y-auto"
+                 style={{ minHeight: 0 }}>
               {renderCustomizeTab()}
             </div>
           )}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 min-w-0 min-h-0 overflow-auto p-4 md:p-6">
             {activeTab === 'chart' || activeTab === 'customize' ? (
-              <div className="w-full h-full min-h-[250px] md:min-h-[500px] flex items-center justify-center">
+              <div className="w-full h-full min-h-[250px] md:min-h-[400px] flex items-center justify-center">
                 <ChartRenderer config={chart} height={options.height || 500} options={options} />
               </div>
             ) : (

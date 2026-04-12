@@ -2,7 +2,7 @@ import { DashboardPanel } from './DashboardPanel';
 import { SuggestionCard } from './SuggestionCard';
 import { useDataStore } from '../stores/useDataStore';
 import { LayoutGrid, Trash2, Sparkles, Loader2, Download, Lightbulb, Undo2, FileDown } from 'lucide-react';
-import { exportDashboardAsPDF } from '../lib/exportUtils';
+import { exportDashboardAsPNG } from '../lib/exportUtils';
 
 export function InteractiveDashboard() {
   const { dashboardPanels, highlightedPanelId, suggestions, profile, clearPanels, isAnalyzing, datasetId, sendChatMessage, isChatLoading, canUndo, undoMutation, downloadData } = useDataStore();
@@ -28,12 +28,12 @@ export function InteractiveDashboard() {
                 {dashboardPanels.length} panel{dashboardPanels.length !== 1 ? 's' : ''}
               </span>
               <button
-                onClick={() => exportDashboardAsPDF('dashboard-grid')}
+                onClick={() => exportDashboardAsPNG('dashboard-grid')}
                 className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5
                            px-3 py-1.5 rounded-lg hover:bg-accent transition-all duration-200"
               >
                 <Download className="w-3 h-3" />
-                <span className="hidden sm:inline">Export PDF</span>
+                <span className="hidden sm:inline">Export PNG</span>
               </button>
               <button
                 onClick={() => downloadData()}

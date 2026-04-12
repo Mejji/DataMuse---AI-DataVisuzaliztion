@@ -1,22 +1,70 @@
 import { useState } from 'react';
-import { GripVertical, Trash2, Edit3, Check } from 'lucide-react';
+import { GripVertical, Trash2, Edit3, Check, Wand2, Loader2, Send, X } from 'lucide-react';
 import { ChartRenderer } from './ChartRenderer';
+import { refineChapter } from '../lib/api';
 import type { StoryChapter as StoryChapterType } from '../lib/api';
 
 interface StoryChapterProps {
   chapter: StoryChapterType;
+  datasetId: string | null;
   onUpdate: (updated: StoryChapterType) => void;
   onDelete: () => void;
 }
 
-export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterProps) {
+const DEFAULT_SUGGESTIONS = [
+  'Make it more concise',
+  'Add specific numbers',
+  'Make the tone more formal',
+  'Simplify the language',
+  'Add a comparison angle',
+  'Focus on the key takeaway',
+];
+
+export function StoryChapterCard({ chapter, datasetId, onUpdate, onDelete }: StoryChapterProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(chapter.title);
   const [editNarrative, setEditNarrative] = useState(chapter.narrative);
 
+  // AI refinement state
+  const [showAiInput, setShowAiInput] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS.slice(0, 3));
+
   const handleSave = () => {
     onUpdate({ ...chapter, title: editTitle, narrative: editNarrative });
     setIsEditing(false);
+  };
+
+  const handleAiRefine = async (instruction: string) => {
+    if (!datasetId || !instruction.trim() || isRefining) return;
+    setIsRefining(true);
+    try {
+      const result = await refineChapter(
+        datasetId,
+        chapter.title,
+        chapter.narrative,
+        instruction.trim(),
+      );
+      // Apply the AI changes
+      const updated = { ...chapter, title: result.title, narrative: result.narrative };
+      onUpdate(updated);
+      setEditTitle(result.title);
+      setEditNarrative(result.narrative);
+      // Update suggestions with AI-generated ones
+      if (result.suggestions?.length) {
+        setSuggestions(result.suggestions);
+      }
+      setAiInstruction('');
+    } catch {
+      // Keep current text, just clear input
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    handleAiRefine(suggestion);
   };
 
   return (
@@ -33,12 +81,24 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
               Chapter {chapter.order}
             </span>
             <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+              {/* AI refine toggle */}
+              <button
+                onClick={() => { setShowAiInput(!showAiInput); setIsEditing(false); }}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  showAiInput
+                    ? 'text-dm-violet bg-dm-violet/10'
+                    : 'text-muted-foreground hover:text-dm-violet hover:bg-dm-violet/5'
+                }`}
+                title="Refine with AI"
+              >
+                <Wand2 className="w-4 h-4" />
+              </button>
               {isEditing ? (
                 <button onClick={handleSave} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors">
                   <Check className="w-4 h-4" />
                 </button>
               ) : (
-                <button onClick={() => setIsEditing(true)} className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal-light dark:hover:bg-dm-teal/10 rounded-lg transition-colors">
+                <button onClick={() => { setIsEditing(true); setShowAiInput(false); }} className="p-1.5 text-muted-foreground hover:text-dm-teal hover:bg-dm-teal-light dark:hover:bg-dm-teal/10 rounded-lg transition-colors">
                   <Edit3 className="w-4 h-4" />
                 </button>
               )}
@@ -75,6 +135,58 @@ export function StoryChapterCard({ chapter, onUpdate, onDelete }: StoryChapterPr
           {chapter.chart_config && (
             <div className="mt-5 border-t border-border/40 pt-5">
               <ChartRenderer config={chapter.chart_config} height={240} />
+            </div>
+          )}
+
+          {/* ── AI Refine Panel ── */}
+          {showAiInput && (
+            <div className="mt-5 border-t border-border/40 pt-5 animate-fade-in">
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(s)}
+                    disabled={isRefining}
+                    className="text-xs px-3 py-1.5 bg-accent/50 text-muted-foreground hover:text-foreground
+                               border border-border/40 rounded-full hover:border-dm-violet/30
+                               disabled:opacity-50 transition-all duration-200"
+                  >
+                    <Wand2 className="w-3 h-3 inline mr-1" />
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom instruction input */}
+              <div className="flex gap-2">
+                <input
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiRefine(aiInstruction); } }}
+                  placeholder="Tell Muse how to change this chapter..."
+                  disabled={isRefining}
+                  className="flex-1 text-sm bg-background border border-border/60 rounded-xl px-4 py-2.5
+                             placeholder-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-dm-violet/20
+                             focus:border-dm-violet/30 disabled:opacity-50 transition-all duration-200"
+                />
+                <button
+                  onClick={() => handleAiRefine(aiInstruction)}
+                  disabled={isRefining || !aiInstruction.trim()}
+                  className="px-4 py-2.5 bg-gradient-to-r from-dm-violet to-dm-sky text-white rounded-xl
+                             hover:shadow-lg hover:shadow-dm-violet/20 disabled:from-muted disabled:to-muted
+                             disabled:text-muted-foreground disabled:shadow-none text-sm font-semibold transition-all duration-200"
+                >
+                  {isRefining ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {isRefining && (
+                <p className="text-xs text-muted-foreground mt-2 animate-pulse">Muse is rewriting...</p>
+              )}
             </div>
           )}
         </div>

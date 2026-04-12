@@ -255,10 +255,20 @@ export function UploadZone() {
           ))}
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-xs text-muted-foreground/50 mt-12 animate-fade-in" style={{ animationDelay: '600ms' }}>
-          Your data stays private and is never shared. Muse analyzes everything locally.
-        </p>
+        {/* Privacy notice */}
+        <div className="text-center mt-12 max-w-md mx-auto animate-fade-in" style={{ animationDelay: '600ms' }}>
+          <p className="text-xs text-muted-foreground/70 leading-relaxed">
+            <span className="font-semibold text-muted-foreground">Privacy note:</span> Your data is sent to third-party AI providers
+            (Groq, Cerebras, Google) for analysis. Do not upload sensitive or confidential data.
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-2 leading-relaxed">
+            For full privacy, you can run local models like{' '}
+            <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="text-dm-teal hover:underline underline-offset-2">
+              Llama via Ollama
+            </a>{' '}
+            on your own machine.
+          </p>
+        </div>
       </div>
     </div>
   );

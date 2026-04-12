@@ -1,17 +1,89 @@
 import traceback
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.services.llm_service import generate_story_draft
+from app.services.llm_service import generate_story_draft, refine_chapter_text
 from app.services.data_tools import create_chart_data
 from app.routers.upload import datasets, _touch
 from app.routers.chat import conversations
 
 router = APIRouter(prefix="/api", tags=["story"])
 
+# ── Story angle presets ──────────────────────────────────────────────
+STORY_ANGLES = [
+    {
+        "id": "overview",
+        "label": "Executive Overview",
+        "description": "High-level summary with key metrics and takeaways",
+        "prompt_hint": "Write an executive summary — focus on the big numbers, key trends, and actionable takeaways. Keep it concise and business-friendly.",
+    },
+    {
+        "id": "trends",
+        "label": "Trends & Patterns",
+        "description": "Focus on how things changed over time",
+        "prompt_hint": "Focus on time-based trends, seasonal patterns, growth rates, and inflection points. Show what's changing and in which direction.",
+    },
+    {
+        "id": "comparison",
+        "label": "Category Comparison",
+        "description": "Compare groups, segments, or categories side-by-side",
+        "prompt_hint": "Compare the main categories or groups in the data. Highlight winners, losers, and surprising gaps between segments.",
+    },
+    {
+        "id": "deep_dive",
+        "label": "Deep Dive Analysis",
+        "description": "Detailed exploration of correlations and outliers",
+        "prompt_hint": "Go deep — look for correlations, outliers, anomalies, and non-obvious patterns. Be analytical and thorough.",
+    },
+    {
+        "id": "custom",
+        "label": "Custom Story",
+        "description": "Tell the AI exactly what angle you want",
+        "prompt_hint": "",
+    },
+]
+
 
 class StoryRequest(BaseModel):
     dataset_id: str
-    pinned_insights: list[str] = []  # User-pinned insights from chat
+    pinned_insights: list[str] = []
+    angle: str = ""        # angle id or empty for default
+    custom_prompt: str = ""  # user's custom instructions
+
+
+class RefineRequest(BaseModel):
+    dataset_id: str
+    chapter_title: str
+    chapter_narrative: str
+    user_instruction: str  # e.g. "make it shorter", "add percentages", "focus on Q4"
+
+
+@router.get("/story/angles")
+async def get_story_angles():
+    """Return available story angles/themes."""
+    return {"angles": STORY_ANGLES}
+
+
+@router.post("/story/refine")
+async def refine_chapter(request: RefineRequest):
+    """Use AI to refine a single chapter based on user instructions."""
+    if request.dataset_id not in datasets:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    _touch(request.dataset_id)
+    dataset = datasets[request.dataset_id]
+    profile = dataset.get("profile_dict") or dataset["profile"].model_dump()
+
+    try:
+        result = refine_chapter_text(
+            profile=profile,
+            chapter_title=request.chapter_title,
+            chapter_narrative=request.chapter_narrative,
+            user_instruction=request.user_instruction,
+        )
+        return result
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Refine error: {str(e)}")
 
 
 @router.post("/story/generate")
@@ -23,6 +95,16 @@ async def generate_story(request: StoryRequest):
     dataset = datasets[request.dataset_id]
     profile = dataset.get("profile_dict") or dataset["profile"].model_dump()
     df = dataset["df"]
+
+    # Build angle hint
+    angle_hint = ""
+    if request.custom_prompt:
+        angle_hint = request.custom_prompt
+    elif request.angle:
+        for a in STORY_ANGLES:
+            if a["id"] == request.angle:
+                angle_hint = a["prompt_hint"]
+                break
 
     # Combine pinned insights with conversation highlights
     insights = list(request.pinned_insights)
@@ -39,7 +121,7 @@ async def generate_story(request: StoryRequest):
                 insights.append(f"{col['name']}: average {col['mean']}, range {col.get('min_val', '?')} to {col.get('max_val', '?')}")
 
     try:
-        story = generate_story_draft(profile, insights)
+        story = generate_story_draft(profile, insights, angle_hint=angle_hint)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Story generation error: {str(e)}")
