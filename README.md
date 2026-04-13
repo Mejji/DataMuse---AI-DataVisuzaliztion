@@ -292,6 +292,11 @@ See [SECURITY.md](SECURITY.md) for the full security policy and vulnerability re
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to report bugs, suggest features, and submit pull requests.
 
+## Authors
+
+- **Mark Josh Alvear**
+- **Aaron James Jayin**
+
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE) for details.
