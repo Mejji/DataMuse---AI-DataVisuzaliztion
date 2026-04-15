@@ -100,7 +100,7 @@ DataMuse uses a **tiered model router** that matches request complexity to the r
 | Tier | Role | Models | When Used |
 |------|------|--------|-----------|
 | **1 — Strong** | Reliable tool calling, complex reasoning, long output | `llama-3.3-70b-versatile`, `qwen-3-235b`, `gemini-2.5-flash` | Chart generation, analytics, correlations, stories, data mutations |
-| **2 — Mid** | Decent quality, good throughput | `kimi-k2-instruct`, `qwen3-32b`, `llama-4-scout-17b` | General conversation, moderate questions |
+| **2 — Mid** | Decent quality, good throughput | `gpt-oss-120b`, `qwen3-32b`, `llama-4-scout-17b` | General conversation, moderate questions |
 | **3 — Fast** | Lightweight, high RPD | `llama-3.1-8b-instant`, `llama3.1-8b` | "What columns?", "How many rows?", greetings |
 
 ### Routing Examples
@@ -124,7 +124,7 @@ DataMuse uses a **tiered model router** that matches request complexity to the r
 | 1 | Groq | `llama-3.3-70b-versatile` | 1,000 | 100,000 |
 | 1 | Cerebras | `qwen-3-235b-a22b-instruct-2507` | 14,400 | 1,000,000 |
 | 1 | Gemini | `gemini-2.5-flash` | 250 | 250,000 TPM |
-| 2 | Groq | `moonshotai/kimi-k2-instruct` | 1,000 | 300,000 |
+| 2 | Groq | `openai/gpt-oss-120b` | 1,000 | 250,000 TPM |
 | 2 | Groq | `qwen/qwen3-32b` | 1,000 | 500,000 |
 | 2 | Groq | `meta-llama/llama-4-scout-17b-16e-instruct` | 1,000 | 500,000 |
 | 3 | Groq | `llama-3.1-8b-instant` | 14,400 | 500,000 |

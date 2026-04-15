@@ -37,7 +37,7 @@ MODEL_POOL: list[ModelEntry] = [
     ModelEntry("cerebras", "qwen-3-235b-a22b-instruct-2507",        tier=1),
     ModelEntry("gemini",   "gemini-2.5-flash",                       tier=1),
     # --- Tier 2: Mid (decent quality, good throughput) ---
-    ModelEntry("groq",     "moonshotai/kimi-k2-instruct",            tier=2),
+    ModelEntry("groq",     "openai/gpt-oss-120b",                    tier=2),
     ModelEntry("groq",     "qwen/qwen3-32b",                         tier=2),
     ModelEntry("groq",     "meta-llama/llama-4-scout-17b-16e-instruct", tier=2),
     # --- Tier 3: Fast (simple questions, high RPD) ---
